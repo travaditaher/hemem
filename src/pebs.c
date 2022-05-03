@@ -109,6 +109,10 @@ void make_cold_request(struct hemem_page* page)
 
 void *pebs_scan_thread()
 {
+#ifdef SAMPLE_BASED_COOLING
+  uint64_t samples_since_cool = 0;
+#endif
+
   cpu_set_t cpuset;
   pthread_t thread;
 
@@ -169,13 +173,26 @@ void *pebs_scan_thread()
                   page->accesses[NVMREAD] >>= (global_clock - page->local_clock);
                   page->accesses[WRITE] >>= (global_clock - page->local_clock);
                   page->local_clock = global_clock;
+                  #ifndef SAMPLE_BASED_COOLING
                   if (page->accesses[j] > PEBS_COOLING_THRESHOLD) {
                     global_clock++;
                     cools++;
                     need_cool_dram = true;
                     need_cool_nvm = true;
                   }
+                  #else
+                  if (samples_since_cool > SAMPLE_COOLING_THRESHOLD) {
+                    global_clock++;
+                    cools++;
+                    need_cool_dram = true;
+                    need_cool_nvm = true;
+                    samples_since_cool = 0;
+                  }
+                  #endif
                 }
+                #ifdef SAMPLE_BASED_COOLING
+                samples_since_cool++;
+                #endif
                 hemem_pages_cnt++;
               }
               else {
@@ -541,10 +558,12 @@ void *pebs_policy_thread()
         break;
       }
 
-      #ifdef COOL_IN_PLACE
-      update_current_cool_page(&cur_cool_in_dram, &cur_cool_in_nvm, page);
-      #endif
-      
+#ifdef COOL_IN_PLACE
+      if (p == cur_cool_in_nvm) {
+        cur_cool_in_nvm = nvm_hot_list.first;
+      }
+#endif
+
       if ((p->accesses[WRITE] < HOT_WRITE_THRESHOLD) && (p->accesses[DRAMREAD] + p->accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
         // it has been cooled, need to move it into the cold list
         p->hot = false;
@@ -558,10 +577,6 @@ void *pebs_policy_thread()
 
         if (np != NULL) {
           assert(!(np->present));
-
-          #ifdef COOL_IN_PLACE
-          //update_current_cool_page(&cur_cool_in_dram, &cur_cool_in_nvm, np);
-          #endif
 
           LOG("%lx: cold %lu -> hot %lu\t slowmem.hot: %lu, slowmem.cold: %lu\t fastmem.hot: %lu, fastmem.cold: %lu\n",
                 p->va, p->devdax_offset, np->devdax_offset, nvm_hot_list.numentries, nvm_cold_list.numentries, dram_hot_list.numentries, dram_cold_list.numentries);
@@ -593,18 +608,10 @@ void *pebs_policy_thread()
         }
         assert(cp != NULL);
 
-        #ifdef COOL_IN_PLACE
-        //update_current_cool_page(&cur_cool_in_dram, &cur_cool_in_nvm, cp);
-        #endif 
-
         // find a free nvm page to move the cold dram page to
         np = dequeue_fifo(&nvm_free_list);
         if (np != NULL) {
           assert(!(np->present));
-
-          #ifdef COOL_IN_PLACE 
-          //update_current_cool_page(&cur_cool_in_dram, &cur_cool_in_nvm, np);
-          #endif
 
           LOG("%lx: hot %lu -> cold %lu\t slowmem.hot: %lu, slowmem.cold: %lu\t fastmem.hot: %lu, fastmem.cold: %lu\n",
                 cp->va, cp->devdax_offset, np->devdax_offset, nvm_hot_list.numentries, nvm_cold_list.numentries, dram_hot_list.numentries, dram_cold_list.numentries);
