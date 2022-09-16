@@ -153,17 +153,17 @@ void *pebs_scan_thread()
                 if (page->va != 0) {
                   page->accesses[j]++;
                   page->tot_accesses[j]++;
-                  if (page->accesses[WRITE] >= HOT_WRITE_THRESHOLD) {
+                  //if (page->accesses[WRITE] >= HOT_WRITE_THRESHOLD) {
+                  //  if (!page->hot && !page->ring_present) {
+                  //      make_hot_request(page);
+                  //  }
+                  //}
+                  /*else*/ if (page->accesses[DRAMREAD] + page->accesses[NVMREAD] >= HOT_READ_THRESHOLD) {
                     if (!page->hot && !page->ring_present) {
                         make_hot_request(page);
                     }
                   }
-                  else if (page->accesses[DRAMREAD] + page->accesses[NVMREAD] >= HOT_READ_THRESHOLD) {
-                    if (!page->hot && !page->ring_present) {
-                        make_hot_request(page);
-                    }
-                  }
-                  else if ((page->accesses[WRITE] < HOT_WRITE_THRESHOLD) && (page->accesses[DRAMREAD] + page->accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
+                  else if (/*(page->accesses[WRITE] < HOT_WRITE_THRESHOLD) &&*/ (page->accesses[DRAMREAD] + page->accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
                     if (page->hot && !page->ring_present) {
                         make_cold_request(page);
                     }
@@ -171,7 +171,7 @@ void *pebs_scan_thread()
 
                   page->accesses[DRAMREAD] >>= (global_clock - page->local_clock);
                   page->accesses[NVMREAD] >>= (global_clock - page->local_clock);
-                  page->accesses[WRITE] >>= (global_clock - page->local_clock);
+                  //page->accesses[WRITE] >>= (global_clock - page->local_clock);
                   page->local_clock = global_clock;
                   #ifndef SAMPLE_BASED_COOLING
                   if (page->accesses[j] > PEBS_COOLING_THRESHOLD) {
@@ -362,7 +362,7 @@ struct hemem_page* partial_cool(struct fifo_list *hot, struct fifo_list *cold, b
         tmp_accesses[j] = p->accesses[j] >> (global_clock - p->local_clock);
     }
 
-    if ((tmp_accesses[WRITE] < HOT_WRITE_THRESHOLD) && (tmp_accesses[DRAMREAD] + tmp_accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
+    if (/*(tmp_accesses[WRITE] < HOT_WRITE_THRESHOLD) &&*/ (tmp_accesses[DRAMREAD] + tmp_accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
         p->hot = false;
     }
     
@@ -425,7 +425,7 @@ static void partial_cool(struct fifo_list *hot, struct fifo_list *cold, bool dra
         tmp_accesses[j] = p->accesses[j] >> (global_clock - p->local_clock);
     }
 
-    if ((tmp_accesses[WRITE] < HOT_WRITE_THRESHOLD) && (tmp_accesses[DRAMREAD] + tmp_accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
+    if (/*(tmp_accesses[WRITE] < HOT_WRITE_THRESHOLD) &&*/ (tmp_accesses[DRAMREAD] + tmp_accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
         p->hot = false;
     }
 
@@ -564,7 +564,7 @@ void *pebs_policy_thread()
       }
 #endif
 
-      if ((p->accesses[WRITE] < HOT_WRITE_THRESHOLD) && (p->accesses[DRAMREAD] + p->accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
+      if (/*(p->accesses[WRITE] < HOT_WRITE_THRESHOLD) &&*/ (p->accesses[DRAMREAD] + p->accesses[NVMREAD] < HOT_READ_THRESHOLD)) {
         // it has been cooled, need to move it into the cold list
         p->hot = false;
         enqueue_fifo(&nvm_cold_list, p); 
@@ -731,7 +731,7 @@ void pebs_init(void)
     //perf_page[i][READ] = perf_setup(0x81d0, 0, i);   // MEM_INST_RETIRED.ALL_LOADS
     perf_page[i][DRAMREAD] = perf_setup(0x1d3, 0, i, DRAMREAD);      // MEM_LOAD_L3_MISS_RETIRED.LOCAL_DRAM
     perf_page[i][NVMREAD] = perf_setup(0x80d1, 0, i, NVMREAD);     // MEM_LOAD_RETIRED.LOCAL_PMM
-    perf_page[i][WRITE] = perf_setup(0x82d0, 0, i, WRITE);    // MEM_INST_RETIRED.ALL_STORES
+    //perf_page[i][WRITE] = perf_setup(0x82d0, 0, i, WRITE);    // MEM_INST_RETIRED.ALL_STORES
     //perf_page[i][WRITE] = perf_setup(0x12d0, 0, i);   // MEM_INST_RETIRED.STLB_MISS_STORES
   }
 
