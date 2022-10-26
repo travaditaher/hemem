@@ -183,7 +183,9 @@ void remove_page(struct hemem_page *page)
 struct hemem_page* find_page(uint64_t va)
 {
   struct hemem_page *page;
+  pthread_mutex_lock(&pages_lock);
   HASH_FIND(hh, pages, &va, sizeof(uint64_t), page);
+  pthread_mutex_unlock(&pages_lock);
   return page;
 }
 
