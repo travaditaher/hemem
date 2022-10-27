@@ -572,7 +572,7 @@ void hemem_mmgr_init(void)
     n->offset = i * HUGEPAGE_SIZE;
 
     struct hemem_page *p = calloc(1, sizeof(struct hemem_page));
-    p->devdax_offset = i * HUGEPAGE_SIZE;
+    p->devdax_offset = i * HUGEPAGE_SIZE + dramoffset;
     p->present = false;
     p->in_dram = true;
     p->pt = pagesize_to_pt(HUGEPAGE_SIZE);
@@ -588,7 +588,7 @@ void hemem_mmgr_init(void)
     n->offset = i * HUGEPAGE_SIZE;
 
     struct hemem_page *p = calloc(1, sizeof(struct hemem_page));
-    p->devdax_offset = i * HUGEPAGE_SIZE;
+    p->devdax_offset = i * HUGEPAGE_SIZE + nvmoffset;
     p->present = false;
     p->in_dram = false;
     p->pt = pagesize_to_pt(HUGEPAGE_SIZE);

@@ -738,7 +738,7 @@ void pebs_init(void)
   pthread_mutex_init(&(dram_free_list.list_lock), NULL);
   for (int i = 0; i < dramsize / PAGE_SIZE; i++) {
     struct hemem_page *p = calloc(1, sizeof(struct hemem_page));
-    p->devdax_offset = i * PAGE_SIZE;
+    p->devdax_offset = i * PAGE_SIZE + dramoffset;
     p->present = false;
     p->in_dram = true;
     p->ring_present = false;
@@ -751,7 +751,7 @@ void pebs_init(void)
   pthread_mutex_init(&(nvm_free_list.list_lock), NULL);
   for (int i = 0; i < nvmsize / PAGE_SIZE; i++) {
     struct hemem_page *p = calloc(1, sizeof(struct hemem_page));
-    p->devdax_offset = i * PAGE_SIZE;
+    p->devdax_offset = i * PAGE_SIZE + nvmoffset;
     p->present = false;
     p->in_dram = false;
     p->ring_present = false;

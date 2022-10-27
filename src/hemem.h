@@ -47,11 +47,16 @@ extern "C" {
 
 extern uint64_t nvmsize;
 extern uint64_t dramsize;
+extern off_t nvmoffset;
+extern off_t dramoffset;
 extern char* drampath;
 extern char* nvmpath;
 
 #define NVMSIZE_DEFAULT   (480L * (1024L * 1024L * 1024L))
 #define DRAMSIZE_DEFAULT  (128L * (1024L * 1024L * 1024L))
+
+#define NVMOFFSET_DEFAULT (0)
+#define DRAMOFFSET_DEFAULT (0)
 
 #define DRAMPATH_DEFAULT  "/dev/dax0.0"
 #define NVMPATH_DEFAULT   "/dev/dax1.0"

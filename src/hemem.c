@@ -34,6 +34,8 @@ pthread_t fault_thread;
 
 uint64_t nvmsize = 0;
 uint64_t dramsize = 0;
+off_t nvmoffset = 0;
+off_t dramoffset = 0;
 char* drampath = NULL;
 char* nvmpath = NULL;
 
@@ -277,6 +279,12 @@ void hemem_init()
     assert(0);
   }
 
+  char* dramoffset_string = getenv("DRAMOFFSET");
+  if(dramoffset_string != NULL)
+    dramoffset = strtoull(dramoffset_string, NULL, 10);
+  else
+    dramoffset = DRAMOFFSET_DEFAULT;
+
   char* dramsize_string = getenv("DRAMSIZE");
   if(dramsize_string != NULL)
     dramsize = strtoull(dramsize_string, NULL, 10);
@@ -284,12 +292,18 @@ void hemem_init()
     dramsize = DRAMSIZE_DEFAULT;
 
   if(dramsize != 0) {
-    dram_devdax_mmap =libc_mmap(NULL, dramsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, dramfd, 0);
+    dram_devdax_mmap =libc_mmap(NULL, dramsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, dramfd, dramoffset);
     if (dram_devdax_mmap == MAP_FAILED) {
       perror("dram devdax mmap");
       assert(0);
     }
   }
+
+  char* nvmoffset_string = getenv("NVMOFFSET");
+  if(nvmoffset_string != NULL)
+    nvmoffset = strtoull(nvmoffset_string, NULL, 10);
+  else
+    nvmoffset = NVMOFFSET_DEFAULT;
 
   char* nvmsize_string = getenv("NVMSIZE");
   if(nvmsize_string != NULL)
@@ -297,7 +311,7 @@ void hemem_init()
   else
     nvmsize = NVMSIZE_DEFAULT;
 
-  nvm_devdax_mmap =libc_mmap(NULL, nvmsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, nvmfd, 0);
+  nvm_devdax_mmap =libc_mmap(NULL, nvmsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, nvmfd, nvmoffset);
   if (nvm_devdax_mmap == MAP_FAILED) {
     perror("nvm devdax mmap");
     assert(0);
@@ -402,7 +416,7 @@ static void hemem_mmap_populate(void* addr, size_t length)
     in_dram = page->in_dram;
     pagesize = pt_to_pagesize(page->pt);
 
-    tmpaddr = (in_dram ? dram_devdax_mmap + offset : nvm_devdax_mmap + offset);
+    tmpaddr = (in_dram ? dram_devdax_mmap + (offset - dramoffset): nvm_devdax_mmap + (offset - nvmoffset));
 #ifndef USE_DMA
     hemem_parallel_memset(tmpaddr, 0, pagesize);
 #else
@@ -634,13 +648,13 @@ void hemem_migrate_up(struct hemem_page *page, uint64_t dram_offset)
   old_addr_offset = page->devdax_offset;
   new_addr_offset = dram_offset;
 
-  old_addr = nvm_devdax_mmap + old_addr_offset;
-  assert((uint64_t)old_addr_offset < nvmsize);
-  assert((uint64_t)old_addr_offset + pagesize <= nvmsize);
+  old_addr = nvm_devdax_mmap + (old_addr_offset - nvmoffset);
+  assert((uint64_t)(old_addr_offset - nvmoffset) < nvmsize);
+  assert((uint64_t)(old_addr_offset - nvmoffset) + pagesize <= nvmsize);
 
-  new_addr = dram_devdax_mmap + new_addr_offset;
-  assert((uint64_t)new_addr_offset < dramsize);
-  assert((uint64_t)new_addr_offset + pagesize <= dramsize);
+  new_addr = dram_devdax_mmap + (new_addr_offset - dramoffset);
+  assert((uint64_t)(new_addr_offset - dramoffset) < dramsize);
+  assert((uint64_t)(new_addr_offset - dramoffset) + pagesize <= dramsize);
 
   // copy page from faulting location to temp location
   gettimeofday(&start, NULL);
@@ -749,13 +763,13 @@ void hemem_migrate_down(struct hemem_page *page, uint64_t nvm_offset)
   old_addr_offset = page->devdax_offset;
   new_addr_offset = nvm_offset;
 
-  old_addr = dram_devdax_mmap + old_addr_offset;
-  assert((uint64_t)old_addr_offset < dramsize);
-  assert((uint64_t)old_addr_offset + pagesize <= dramsize);
+  old_addr = dram_devdax_mmap + (old_addr_offset - dramoffset);
+  assert((uint64_t)(old_addr_offset - dramoffset) < dramsize);
+  assert((uint64_t)(old_addr_offset - dramoffset) + pagesize <= dramsize);
 
-  new_addr = nvm_devdax_mmap + new_addr_offset;
-  assert((uint64_t)new_addr_offset < nvmsize);
-  assert((uint64_t)new_addr_offset + pagesize <= nvmsize);
+  new_addr = nvm_devdax_mmap + (new_addr_offset - nvmoffset);
+  assert((uint64_t)(new_addr_offset - nvmoffset) < nvmsize);
+  assert((uint64_t)(new_addr_offset - nvmoffset) + pagesize <= nvmsize);
 
   // copy page from faulting location to temp location
   gettimeofday(&start, NULL);
@@ -928,7 +942,7 @@ void handle_missing_fault(uint64_t page_boundry)
   in_dram = page->in_dram;
   pagesize = pt_to_pagesize(page->pt);
 
-  tmp_offset = (in_dram) ? dram_devdax_mmap + offset : nvm_devdax_mmap + offset;
+  tmp_offset = (in_dram) ? dram_devdax_mmap + (offset - dramoffset) : nvm_devdax_mmap + (offset - nvmoffset);
 
 #ifdef USE_DMA
   memset(tmp_offset, 0, pagesize);
