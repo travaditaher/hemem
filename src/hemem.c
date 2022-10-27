@@ -32,6 +32,11 @@
 
 pthread_t fault_thread;
 
+uint64_t nvmsize = 0;
+uint64_t dramsize = 0;
+char* drampath = NULL;
+char* nvmpath = NULL;
+
 int dramfd = -1;
 int nvmfd = -1;
 long uffd = -1;
@@ -216,13 +221,25 @@ void hemem_init()
 
   LOG("hemem_init: started\n");
 
-  dramfd = open(DRAMPATH, O_RDWR);
+  drampath = getenv("DRAMPATH");
+  if(drampath == NULL) {
+    drampath = malloc(sizeof(DRAMPATH_DEFAULT));
+    strcpy(drampath, DRAMPATH_DEFAULT);
+  }
+
+  dramfd = open(drampath, O_RDWR);
   if (dramfd < 0) {
     perror("dram open");
   }
   assert(dramfd >= 0);
 
-  nvmfd = open(NVMPATH, O_RDWR);
+  nvmpath = getenv("NVMPATH");
+  if(nvmpath == NULL) {
+    nvmpath = malloc(sizeof(NVMPATH_DEFAULT));
+    strcpy(nvmpath, NVMPATH_DEFAULT);
+  }
+
+  nvmfd = open(nvmpath, O_RDWR);
   if (nvmfd < 0) {
     perror("nvm open");
   }
@@ -260,15 +277,27 @@ void hemem_init()
     assert(0);
   }
 
-#if DRAMSIZE != 0
-  dram_devdax_mmap =libc_mmap(NULL, DRAMSIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, dramfd, 0);
-  if (dram_devdax_mmap == MAP_FAILED) {
-    perror("dram devdax mmap");
-    assert(0);
-  }
-#endif
+  char* dramsize_string = getenv("DRAMSIZE");
+  if(dramsize_string != NULL)
+    dramsize = strtoull(dramsize_string, NULL, 10);
+  else
+    dramsize = DRAMSIZE_DEFAULT;
 
-  nvm_devdax_mmap =libc_mmap(NULL, NVMSIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, nvmfd, 0);
+  if(dramsize != 0) {
+    dram_devdax_mmap =libc_mmap(NULL, dramsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, dramfd, 0);
+    if (dram_devdax_mmap == MAP_FAILED) {
+      perror("dram devdax mmap");
+      assert(0);
+    }
+  }
+
+  char* nvmsize_string = getenv("NVMSIZE");
+  if(nvmsize_string != NULL)
+    nvmsize = strtoull(nvmsize_string, NULL, 10);
+  else
+    nvmsize = NVMSIZE_DEFAULT;
+
+  nvm_devdax_mmap =libc_mmap(NULL, nvmsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, nvmfd, 0);
   if (nvm_devdax_mmap == MAP_FAILED) {
     perror("nvm devdax mmap");
     assert(0);
@@ -606,12 +635,12 @@ void hemem_migrate_up(struct hemem_page *page, uint64_t dram_offset)
   new_addr_offset = dram_offset;
 
   old_addr = nvm_devdax_mmap + old_addr_offset;
-  assert((uint64_t)old_addr_offset < NVMSIZE);
-  assert((uint64_t)old_addr_offset + pagesize <= NVMSIZE);
+  assert((uint64_t)old_addr_offset < nvmsize);
+  assert((uint64_t)old_addr_offset + pagesize <= nvmsize);
 
   new_addr = dram_devdax_mmap + new_addr_offset;
-  assert((uint64_t)new_addr_offset < DRAMSIZE);
-  assert((uint64_t)new_addr_offset + pagesize <= DRAMSIZE);
+  assert((uint64_t)new_addr_offset < dramsize);
+  assert((uint64_t)new_addr_offset + pagesize <= dramsize);
 
   // copy page from faulting location to temp location
   gettimeofday(&start, NULL);
@@ -721,12 +750,12 @@ void hemem_migrate_down(struct hemem_page *page, uint64_t nvm_offset)
   new_addr_offset = nvm_offset;
 
   old_addr = dram_devdax_mmap + old_addr_offset;
-  assert((uint64_t)old_addr_offset < DRAMSIZE);
-  assert((uint64_t)old_addr_offset + pagesize <= DRAMSIZE);
+  assert((uint64_t)old_addr_offset < dramsize);
+  assert((uint64_t)old_addr_offset + pagesize <= dramsize);
 
   new_addr = nvm_devdax_mmap + new_addr_offset;
-  assert((uint64_t)new_addr_offset < NVMSIZE);
-  assert((uint64_t)new_addr_offset + pagesize <= NVMSIZE);
+  assert((uint64_t)new_addr_offset < nvmsize);
+  assert((uint64_t)new_addr_offset + pagesize <= nvmsize);
 
   // copy page from faulting location to temp location
   gettimeofday(&start, NULL);

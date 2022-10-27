@@ -10,15 +10,15 @@
 
 #define HEMEM_INTERVAL 10000ULL // in us
 
-#define HEMEM_FASTFREE    (DRAMSIZE / 10)
+#define HEMEM_FASTFREE    (dramsize / 10)
 #define HEMEM_COOL_RATE   (10ULL * 1024ULL * 1024ULL * 1024ULL)
-#define HEMEM_THAW_RATE   (NVMSIZE + DRAMSIZE)
+#define HEMEM_THAW_RATE   (nvmsize + dramsize)
 
-#define FASTMEM_HUGE_PAGES  ((DRAMSIZE) / (HUGEPAGE_SIZE))
-#define FASTMEM_BASE_PAGES  ((DRAMSIZE) / (BASEPAGE_SIZE))
+#define FASTMEM_HUGE_PAGES  ((dramsize) / (HUGEPAGE_SIZE))
+#define FASTMEM_BASE_PAGES  ((dramsize) / (BASEPAGE_SIZE))
 
-#define SLOWMEM_HUGE_PAGES  ((NVMSIZE) / (HUGEPAGE_SIZE))
-#define SLOWMEM_BASE_PAGES  ((NVMSIZE) / (BASEPAGE_SIZE))
+#define SLOWMEM_HUGE_PAGES  ((nvmsize) / (HUGEPAGE_SIZE))
+#define SLOWMEM_BASE_PAGES  ((nvmsize) / (BASEPAGE_SIZE))
 
 struct mmgr_node {
   struct hemem_page *page;

@@ -19,8 +19,8 @@ static struct mmgr_list mem_free[NMEMTYPES][NPAGETYPES];
 static struct mmgr_list mem_active[NMEMTYPES][NPAGETYPES];
 static struct mmgr_list mem_inactive[NMEMTYPES][NPAGETYPES];
 static pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
-static _Atomic uint64_t fastmem_freebytes = DRAMSIZE;
-static _Atomic uint64_t slowmem_freebytes = NVMSIZE;
+static _Atomic uint64_t fastmem_freebytes = dramsize;
+static _Atomic uint64_t slowmem_freebytes = nvmsize;
 
 static void mmgr_list_add(struct mmgr_list *list, struct mmgr_node *node)
 {

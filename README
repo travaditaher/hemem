@@ -27,7 +27,7 @@ To set up the `/dev/dax` file representing DRAM, follow the instructions [here](
 
 `sudo ndctl create-namespace -f -e namespace0.0 --mode=devdax --align 2M`
 
-3. Make note of the `chardev` name of the DRAM `/dev/dax` file. This will be used to tell HeMem which `/dev/dax` file represents DRAM. If this is different from `dax0.0`, then you will need to edit the `src/hemem.h` file `DRAMPATH` macro to point it towards your actual DRAM `/dev/dax` file.
+3. Make note of the `chardev` name of the DRAM `/dev/dax` file. This will be used to tell HeMem which `/dev/dax` file represents DRAM. If this is different from `dax0.0`, then you will need to set the environment variable `DRAMPATH` to your actual DRAM `/dev/dax` file.
 
 To set up the `/dev/dax` file representing NVM, ensure that your machine has NVM in App Direct mode. If you do not already have namespaces representing NVM, then you will need to create them. Follow these steps:
 
@@ -39,7 +39,7 @@ To set up the `/dev/dax` file representing NVM, ensure that your machine has NVM
 
 `ndctl create-namespace --region=1 --mode=devdax`
 
-3. Make note of the `chardev` name of the NVM `/dev/dax` file. This will be used to tell HeMem which `/dev/dax` file represents NVM. If this is different from `dax1.0`, then you will need to edit the `src/hemem.h` file `NVMPATH` macro to point it towards your actual NVM `/dev/dax` file.
+3. Make note of the `chardev` name of the NVM `/dev/dax` file. This will be used to tell HeMem which `/dev/dax` file represents NVM. If this is different from `dax1.0`, then you will need to set the environment variable `NVMPATH` to your actual DRAM `/dev/dax` file.
 
 
 #### Building

@@ -45,11 +45,16 @@ extern "C" {
 
 #define MEM_BARRIER() __sync_synchronize()
 
-#define NVMSIZE   (480L * (1024L * 1024L * 1024L))
-#define DRAMSIZE  (128L * (1024L * 1024L * 1024L))
+extern uint64_t nvmsize;
+extern uint64_t dramsize;
+extern char* drampath;
+extern char* nvmpath;
 
-#define DRAMPATH  "/dev/dax0.0"
-#define NVMPATH   "/dev/dax1.0"
+#define NVMSIZE_DEFAULT   (480L * (1024L * 1024L * 1024L))
+#define DRAMSIZE_DEFAULT  (128L * (1024L * 1024L * 1024L))
+
+#define DRAMPATH_DEFAULT  "/dev/dax0.0"
+#define NVMPATH_DEFAULT   "/dev/dax1.0"
 
 //#define PAGE_SIZE (1024 * 1024 * 1024)
 //#define PAGE_SIZE (2 * (1024 * 1024))
@@ -57,9 +62,6 @@ extern "C" {
 #define HUGEPAGE_SIZE 	(2UL * 1024UL * 1024UL)
 #define GIGAPAGE_SIZE   (1024UL * 1024UL * 1024UL)
 #define PAGE_SIZE 	    HUGEPAGE_SIZE
-
-#define FASTMEM_PAGES   ((DRAMSIZE) / (PAGE_SIZE))
-#define SLOWMEM_PAGES   ((NVMSIZE) / (PAGE_SIZE))
 
 #define BASEPAGE_MASK	(BASEPAGE_SIZE - 1)
 #define HUGEPAGE_MASK	(HUGEPAGE_SIZE - 1)

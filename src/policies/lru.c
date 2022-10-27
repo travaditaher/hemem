@@ -506,7 +506,7 @@ void lru_init(void)
   LOG("lru_init: started\n");
 
   pthread_mutex_init(&(dram_free_list.list_lock), NULL);
-  for (int i = 0; i < DRAMSIZE / PAGE_SIZE; i++) {
+  for (int i = 0; i < dramsize / PAGE_SIZE; i++) {
     struct hemem_page *p = calloc(1, sizeof(struct hemem_page));
     p->devdax_offset = i * PAGE_SIZE;
     p->present = false;
@@ -518,7 +518,7 @@ void lru_init(void)
   }
 
   pthread_mutex_init(&(nvm_free_list.list_lock), NULL);
-  for (int i = 0; i < NVMSIZE / PAGE_SIZE; i++) {
+  for (int i = 0; i < nvmsize / PAGE_SIZE; i++) {
     struct hemem_page *p = calloc(1, sizeof(struct hemem_page));
     p->devdax_offset = i * PAGE_SIZE;
     p->present = false;

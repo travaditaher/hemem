@@ -469,7 +469,7 @@ void *examine_pagetables()
       perror("maps_copy write");
       assert(0);
     }
-    if (strstr(line, DRAMPATH) != NULL) {
+    if (strstr(line, drampath) != NULL) {
       n = sscanf(line, "%lX-%lX", &vm_start, &vm_end);
       if (n != 2) {
         fprintf(stderr, "error, invalid line: %s\n", line);
