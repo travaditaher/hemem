@@ -164,7 +164,7 @@ static void *hemem_stats_thread()
   for (;;) {
     sleep(1);
     
-    hemem_print_stats();
+    hemem_print_stats(stderr);
     hemem_clear_stats();
   }
   return NULL;
@@ -497,7 +497,7 @@ void* hemem_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t o
   
   // reserve block of memory
   length = PAGE_ROUND_UP(length);
-  p = libc_mmap(addr, length, prot, flags, dramfd, offset);
+  p = libc_mmap(addr, length, prot, flags, dramfd, offset + dramoffset);
   if (p == NULL || p == MAP_FAILED) {
     perror("mmap");
   }
@@ -1197,10 +1197,10 @@ uint64_t hemem_get_bits(struct hemem_page *page)
 }
 #endif
 
-void hemem_print_stats()
+void hemem_print_stats(FILE *fd)
 {
 
-  LOG_STATS("mem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
+  fprintf(fd, "mem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
                mem_allocated, 
                pages_allocated, 
                missing_faults_handled, 
@@ -1219,6 +1219,13 @@ void hemem_clear_stats()
   missing_faults_handled = 0;
   migrations_up = 0;
   migrations_down = 0;
+}
+
+void hemem_clear_stats_full()
+{
+  migration_waits = 0;
+  bytes_migrated = 0;
+  hemem_clear_stats();
 }
 
 

@@ -214,8 +214,9 @@ void hemem_tlb_shootdown(uint64_t va);
 
 struct hemem_page* get_hemem_page(uint64_t va);
 
-void hemem_print_stats();
+void hemem_print_stats(FILE *fd);
 void hemem_clear_stats();
+void hemem_clear_stats_full();
 
 void hemem_start_timing(void);
 void hemem_stop_timing(void);
