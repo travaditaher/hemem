@@ -335,9 +335,9 @@ int main(int argc, char **argv)
   gettimeofday(&stoptime, NULL);
 
   secs = elapsed(&starttime, &stoptime);
-  printf("Elapsed time: %.4f seconds.\n", secs);
+  //printf("Elapsed time: %.4f seconds.\n", secs);
   gups = threads * ((double)updates) / (secs * 1.0e9);
-  printf("GUPS = %.10f\n", gups);
+  //printf("GUPS = %.10f\n", gups);
   //memset(thread_gups, 0, sizeof(thread_gups));
 
   filename = "indices2.txt";
@@ -345,7 +345,7 @@ int main(int argc, char **argv)
   fprintf(stderr, "Timing.\n");
   gettimeofday(&starttime, NULL);
 
-  //hemem_clear_stats();
+  hemem_clear_stats_full(); 
   // spawn gups worker threads
   for (i = 0; i < threads; i++) {
     int r = pthread_create(&t[i], NULL, do_gups, (void*)ga[i]);
@@ -358,13 +358,13 @@ int main(int argc, char **argv)
     assert(r == 0);
   }
   gettimeofday(&stoptime, NULL);
-  //hemem_print_stats();
+  hemem_print_stats(stdout);
   //hemem_clear_stats();
 
   secs = elapsed(&starttime, &stoptime);
   printf("Elapsed time: %.4f seconds.\n", secs);
   gups = threads * ((double)updates) / (secs * 1.0e9);
-  printf("GUPS = %.10f\n", gups);
+  printf("GUPS =\t%.10f\n", gups);
 
   //memset(thread_gups, 0, sizeof(thread_gups));
 

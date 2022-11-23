@@ -35,7 +35,7 @@
 #include <stdbool.h>
 
 #include "../src/timer.h"
-//#include "../src/hemem.h"
+#include "../src/hemem.h"
 
 
 #include "gups.h"
@@ -268,7 +268,7 @@ int main(int argc, char **argv)
   secs = elapsed(&starttime, &stoptime);
   printf("Elapsed time: %.4f seconds.\n", secs);
   gups = threads * ((double)updates) / (secs * 1.0e9);
-  printf("GUPS = %.10f\n", gups);
+  printf("GUPS =\t%.10f\n", gups);
 
   //memset(thread_gups, 0, sizeof(thread_gups));
 #if 0
