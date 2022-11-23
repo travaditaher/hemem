@@ -11,7 +11,7 @@ default: gups-pebs gups-random gups-hotset-move
 all: gups-pebs gups-random gups-simple gups-lru gups-lru-swap gups-hotset-move #gups
 
 gups-random: gups-random.o
-	$(CC) $(CFLAGS) $(INCLUDES) -o gups-random gups-random.o zipf.o ../src/timer.o $(LIBS) # -L$(HEMEMDIR) -lhemem
+	$(CC) $(CFLAGS) $(INCLUDES) -o gups-random gups-random.o zipf.o $(LIBS) -L$(HEMEMDIR) -lhemem
 
 gups-small: gups-small.o
 	$(CC) $(CFLAGS) $(INCLUDES) -o gups-small gups-small.o ../src/timer.o $(LIBS)
