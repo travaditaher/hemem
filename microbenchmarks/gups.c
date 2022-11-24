@@ -35,8 +35,9 @@
 #include <stdbool.h>
 
 #include "../src/timer.h"
+#ifdef HEMEM
 #include "../src/hemem.h"
-
+#endif
 
 #include "gups.h"
 
@@ -245,7 +246,7 @@ int main(int argc, char **argv)
   updates -= updates % 256;
   expt = atoi(argv[3]);
   assert(expt > 8);
-  assert(updates > 0 && (updates % 256 == 0));
+  assert((updates % 256 == 0));
   size = (unsigned long)(1) << expt;
   size -= (size % 256);
   assert(size > 0 && (size % 256 == 0));
@@ -345,7 +346,9 @@ int main(int argc, char **argv)
   fprintf(stderr, "Timing.\n");
   gettimeofday(&starttime, NULL);
 
+#ifdef HEMEM
   hemem_clear_stats_full(); 
+#endif
   // spawn gups worker threads
   for (i = 0; i < threads; i++) {
     int r = pthread_create(&t[i], NULL, do_gups, (void*)ga[i]);
@@ -358,8 +361,10 @@ int main(int argc, char **argv)
     assert(r == 0);
   }
   gettimeofday(&stoptime, NULL);
+#ifdef HEMEM
   hemem_print_stats(stdout);
   //hemem_clear_stats();
+#endif
 
   secs = elapsed(&starttime, &stoptime);
   printf("Elapsed time: %.4f seconds.\n", secs);

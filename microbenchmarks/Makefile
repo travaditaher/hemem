@@ -6,7 +6,7 @@ CFLAGS = -g -Wall -O3
 INCLUDES = -I../linux/usr/include
 LIBS = -lm -lpthread
 
-default: gups-pebs gups-random gups-hotset-move
+default: gups-pebs gups-random gups-hotset-move gups
 
 all: gups-pebs gups-random gups-simple gups-lru gups-lru-swap gups-hotset-move #gups
 
@@ -20,7 +20,7 @@ gups: gups.o
 	$(CC) $(CFLAGS) $(INCLUDES) -o gups gups.o zipf.o ../src/timer.o $(LIBS)
 
 gups-pebs: gups.o
-	$(CC) $(CFLAGS) $(INCLUDES) -o gups-pebs gups.o zipf.o $(LIBS) -L$(HEMEMDIR) -lhemem
+	$(CC) $(CFLAGS) $(INCLUDES) -o gups-pebs gups.o zipf.o $(LIBS) -L$(HEMEMDIR) -lhemem -DHEMEM
 
 gups-hotset-move: gups-hotset-move.o
 	$(CC) $(CFLAGS) $(INCLUDES) -o gups-hotset-move gups-hotset-move.o zipf.o $(LIBS) -L$(HEMEMDIR) -lhemem
