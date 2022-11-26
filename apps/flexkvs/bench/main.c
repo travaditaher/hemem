@@ -46,7 +46,7 @@
 #include <protocol_binary.h>
 
 #include "benchmark.h"
-#include "../../common/socket_shim.h"
+#include "socket_shim.h"
 
 #ifdef USE_MTCP
 # include <mtcp_api.h>
@@ -1011,7 +1011,7 @@ static void *thread_run(void *arg)
 
    /* wait until we start running */
     while (phase < BENCHMARK_PRELOAD) {
-        pthread_yield();
+        sched_yield();
     }
 
     printf("[%d] Preloading keys...\n", cn);
@@ -1038,7 +1038,7 @@ static void *thread_run(void *arg)
 
    /* wait until we start running */
     while (phase < BENCHMARK_WARMUP) {
-        pthread_yield();
+        sched_yield();
     }
 
     num_evs = 32;
@@ -1049,7 +1049,7 @@ static void *thread_run(void *arg)
 
     /* wait until we start running */
     while (phase < BENCHMARK_RUNNING) {
-        pthread_yield();
+        sched_yield();
     }
     printf("[%d] Start running...\n", cn);
     fflush(stdout);
@@ -1170,7 +1170,7 @@ int main(int argc, char *argv[])
     phase = BENCHMARK_WARMUP;
 
     while (init_count < num_threads) {
-        pthread_yield();
+        sched_yield();
     }
     printf("Preloading completed\n");
     fflush(stdout);

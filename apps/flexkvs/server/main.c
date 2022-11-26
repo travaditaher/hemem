@@ -36,8 +36,8 @@
 #include <protocol_binary.h>
 
 #include "iokvs.h"
-#include "../../common/socket_shim.h"
-#include <utils.h>
+#include "socket_shim.h"
+#include "utils.h"
 
 #ifndef BATCH_MAX
 #define BATCH_MAX 1
@@ -72,14 +72,14 @@ extern void hemem_print_stats();
 static int open_listening(ssctx_t sc, int cn)
 {
     int fd, ret;
-    //struct sockaddr_un sa;
-    struct sockaddr_in si;
+    struct sockaddr_un sa;
+    //struct sockaddr_in si;
     char buf[32];
 
     sprintf(buf, "kvs_sock%d", cn);
     fprintf(stderr, "open listening %d\n", cn);
-    if ((fd = ss_socket(sc, AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-	//if ((fd = ss_socket(sc, AF_UNIX, SOCK_STREAM, 0)) < 0) {
+    //if ((fd = ss_socket(sc, AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+	if ((fd = ss_socket(sc, AF_UNIX, SOCK_STREAM, 0)) < 0) {
         fprintf(stderr, "[%d] socket failed\n", cn);
         abort();
     }
@@ -96,15 +96,16 @@ static int open_listening(ssctx_t sc, int cn)
         abort();
     }
 
-    memset(&si, 0, sizeof(si));
+    //memset(&si, 0, sizeof(si));
     
-    //strncpy(sa.sun_path, buf, sizeof(sa.sun_path) - 1);
-    //sa.sun_family = AF_UNIX;
-    si.sin_family = AF_INET;
-    si.sin_port = htons(LISTEN_PORT);
+    strncpy(sa.sun_path, buf, sizeof(sa.sun_path) - 1);
+    sa.sun_family = AF_UNIX;
+    //si.sin_family = AF_INET;
+    //si.sin_port = htons(LISTEN_PORT);
 
     /* bind socket */
-    if ((ret = ss_bind(sc, fd, (struct sockaddr *) &si, sizeof(si))) < 0) {
+    //if ((ret = ss_bind(sc, fd, (struct sockaddr *) &si, sizeof(si))) < 0) {
+    if ((ret = ss_bind(sc, fd, (struct sockaddr *) &sa, sizeof(sa))) < 0) {
         fprintf(stderr, "[%d] bind failed: %d\n", cn, ret);
         perror("bind");
 	abort();
