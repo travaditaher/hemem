@@ -594,7 +594,7 @@ static void *processing_thread(void *data)
     int i, epfd, lfd, n;
     struct item_allocator ia;
     size_t total_reqs = 0, total_clean = 0;
-    static uint16_t qcounter;
+    static uint16_t qcounter = 0;
     uint16_t q;
     ssctx_t sc;
     ss_epev_t *evs;
@@ -615,7 +615,7 @@ static void *processing_thread(void *data)
     iallocs[q] = &ia;
     __sync_fetch_and_add(&n_ready, 1);
 
-    printf("Worker starting\n");
+    printf("[%d]: Worker starting\n", q);
 
     while (1) {
         if ((n = ss_epoll_wait(sc, epfd, evs, EPOLL_EVENTS, 1)) < 0) {
@@ -693,7 +693,7 @@ int main(int argc, char *argv[])
 #endif
 
     printf("initiating hash table\n");
-    hasht_init();
+    hasht_init(settings.hasht_size);
     printf("initiating ialloc\n");
     ialloc_init();
 
