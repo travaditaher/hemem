@@ -53,7 +53,7 @@ GAPBS:
 
 # <------------------------------ RUN COMMANDS ------------------------------> 
 
-BASE_NODE ?= 1
+BASE_NODE ?= 0
 OTHER_NODE ?= $$(((${BASE_NODE} + 1) % 2))
 NUMA_CMD ?= numactl -N${BASE_NODE} -m${BASE_NODE}
 NUMA_CMD_CLIENT ?= numactl -N${OTHER_NODE} -m${OTHER_NODE}
@@ -146,16 +146,22 @@ run_bt:
 
 run_bg_dram_base: all
 	PREFIX=bg_dram_base; \
+	BASE_NODE=1;\
 	APP_SIZE=$$((64*1024*1024*1024)); \
-	$(MAKE) run_flexkvs PRELOAD="" FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_alone; \
-	$(MAKE) run_flexkvs PRELOAD="" FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_gups & \
-	$(MAKE) run_gups APP_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}; \
+	$(MAKE) run_flexkvs BASE_NODE=$${BASE_NODE} PRELOAD="" \
+		FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_alone; \
 	wait;\
-	$(MAKE) run_flexkvs PRELOAD="" FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_gapbs & \
-	$(MAKE) run_gapbs PRELOAD="" APP_SIZE=27 PREFIX=$${PREFIX}; \
+	$(MAKE) run_flexkvs BASE_NODE=$${BASE_NODE} PRELOAD="" \
+		FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_gups & \
+	$(MAKE) run_gups BASE_NODE=$${BASE_NODE} APP_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}; \
 	wait;\
-	#$(MAKE) run_bt PRELOAD="" APP_SIZE=$${APP_SIZE} PREFIX=$${PREFIX} & \
-	#$(MAKE) run_flexkvs PRELOAD="" FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_bt; \
+	$(MAKE) run_flexkvs BASE_NODE=$${BASE_NODE} PRELOAD="" \
+		FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_gapbs & \
+	$(MAKE) run_gapbs BASE_NODE=$${BASE_NODE} PRELOAD="" APP_SIZE=27 PREFIX=$${PREFIX}; \
+	wait;\
+	#$(MAKE) run_flexkvs BASE_NODE=$${BASE_NODE} PRELOAD=""\
+	#	FLEXKV_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}_bt & \
+	#$(MAKE) run_bt BASE_NODE=$${BASE_NODE} PRELOAD="" APP_SIZE=$${APP_SIZE} PREFIX=$${PREFIX}; \
 	#wait; \
 
 run_bg_hw_tier: all
@@ -179,7 +185,8 @@ run_bg_sw_tier: all
 	NVMSIZE=$$((${NVMSIZE}/2)); DRAMSIZE=$$((${DRAMSIZE}/2)); \
 	${SETUP_CMD} \
 	PREFIX=bg_hemem; \
-	$(MAKE) run_flexkvs FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_alone; \
+	$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} DRAMSIZE=$${DRAMSIZE} \
+		NVMOFFSET=0 DRAMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_alone; \
 	$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} DRAMSIZE=$${DRAMSIZE} \
 		NVMOFFSET=0 DRAMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gups & \
 	$(MAKE) run_gups_pebs NVMSIZE=$${NVMSIZE} DRAMSIZE=$${DRAMSIZE} \
@@ -200,3 +207,63 @@ run_bg_sw_tier: all
 	#wait; \
 	# TODO: zNUMA runs
 	#PREFIX=bg_znuma;
+
+# FlexKV occupies the entire DRAM and half of NVM, and other app the other half of NVM
+run_test_bg_sw_tier: all
+	# HeMem runs
+	FLEXKV_SIZE=$$((256*1024*1024*1024)); \
+	NVMSIZE=$$((${NVMSIZE}/2)); \
+	${SETUP_CMD} \
+	PREFIX=test_bg_hemem; \
+	$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} NVMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_alone; \
+	$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} NVMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gups & \
+	$(MAKE) run_gups_pebs NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
+		APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}; \
+	wait; \
+	$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} NVMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gapbs & \
+	$(MAKE) run_gapbs NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
+		APP_SIZE=${GAPBS_SIZE} PREFIX=$${PREFIX}; \
+	wait; \
+
+BG_PREFIXES = bg_dram_base bg_hemem test_bg_hemem
+BG_APPS = alone gups gapbs
+extract_bg: all
+	for type in ${BG_PREFIXES}; do \
+		printf "$${type}\nApp\tThroughput\tAvg latency\t95%% latency\t99%% latency\n"; \
+		for app in ${BG_APPS}; do \
+			printf "$${app}\t"; \
+			data=$$(grep "TP: total=" ${RES}/$${type}_$${app}_flexkv.txt); \
+			throughput=$$(echo $${data} | grep -oE "total=[0-9]+\.[0-9]+ mops" | grep -oE "[0-9]+\.[0-9]+"); \
+			avg_lat=$$(echo $${data} | grep -oE "50p=[0-9]+ us" | grep -m2 -oE "[0-9]+" | tail -n1); \
+			nine_five_lat=$$(echo $${data} | grep -oE "95p=[0-9]+ us" | grep -m2 -oE "[0-9]+" | tail -n1); \
+			nine_nine_lat=$$(echo $${data} | grep -oE "99p=[0-9]+ us" | grep -m2 -oE "[0-9]+" | tail -n1); \
+			sum=0; \
+			counter=0; \
+			for i in $${throughput}; do \
+				sum=$$(echo "$${sum} + $$i" | bc -l);\
+				counter=$$(($${counter} + 1)); \
+			done; \
+			printf "%.2f\t" $$(echo "$${sum} / $${counter}" | bc -l); \
+			sum=0; \
+			counter=0; \
+			for i in $${avg_lat}; do \
+				sum=$$(echo "$${sum} + $$i" | bc -l);\
+				counter=$$(($${counter} + 1)); \
+			done; \
+			printf "%.2f\t" $$(echo "$${sum} / $${counter}" | bc -l); \
+			sum=0; \
+			counter=0; \
+			for i in $${nine_five_lat}; do \
+				sum=$$(echo "$${sum} + $$i" | bc -l);\
+				counter=$$(($${counter} + 1)); \
+			done; \
+			printf "%.2f\t" $$(echo "$${sum} / $${counter}" | bc -l); \
+			sum=0; \
+			counter=0; \
+			for i in $${nine_nine_lat}; do \
+				sum=$$(echo "$${sum} + $$i" | bc -l);\
+				counter=$$(($${counter} + 1)); \
+			done; \
+			printf "%.2f\n" $$(echo "$${sum} / $${counter}" | bc -l); \
+		done; \
+	done
