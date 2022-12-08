@@ -33,7 +33,7 @@ int settings_init(int argc, char *argv[])
 {
     settings.udpport = 11211;
     settings.verbose = 1;
-    settings.segsize = 256 * 1024;
+    settings.segsize = (1024 * (16 * 1024 + 32 + sizeof(struct item)));
     //settings.segsize = 128 * 65536;
     //settings.segsize = 1024 * 1024 * 1024;
     //settings.segmaxnum = 4096;
@@ -41,9 +41,9 @@ int settings_init(int argc, char *argv[])
     //settings.segcqsize = 32 * 1024;
     if(argc >= 4) {
         size_t total_size = atoll(argv[3]);
-        // Ratio: 1:3 hashtable:segments
-        settings.hasht_size = total_size / 4;
-        settings.segmaxnum = total_size * 3 / (4 * settings.segsize);
+        // Ratio: 1:31 hashtable:segments
+        settings.hasht_size = total_size / 32;
+        settings.segmaxnum = total_size * 31 / (32 * settings.segsize);
     }
     else {
         settings.hasht_size = (1ull << 31);

@@ -44,6 +44,8 @@ void print_usage(void)
         "  -u, --key-uniform     Uniform key distribution  [default]\n"
         "  -z, --key-zipf=S      Zipf key distribution;\n"
         "                        S is the zipf parameter.\n"
+        "  -h, --key-hot=S       Hotset key distribution;\n"
+        "                        S is the fraction of keys that are hot.\n"
         "  -v, --val-size=BYTES  Value size in bytes       [default 1024].\n"
         "  -g, --get-prob=PROB   Probability of GET Reqs.  [default .9].\n"
         "  -T, --time=SECS       Measurement time in [s].  [default 10].\n"
@@ -64,7 +66,7 @@ void init_settings(struct settings *s)
     s->keysize = 32;
     s->keynum = 1000;
     s->keydist = DIST_UNIFORM;
-    s->valuesize = 4096;
+    s->valuesize = 16 * 1024;
     s->get_prob = 0.9;
     s->warmup_time = 5;
     s->cooldown_time = 5;
@@ -87,6 +89,7 @@ int parse_settings(int argc, char *argv[], struct settings *s)
             {"key-num",     required_argument, NULL, 'n'},
             {"key-uniform", no_argument,       NULL, 'u'},
             {"key-zipf",    required_argument, NULL, 'z'},
+            {"key-hot",     required_argument, NULL, 'h'},
             {"val-size",    required_argument, NULL, 'v'},
             {"get-prob",    required_argument, NULL, 'g'},
             {"time",        required_argument, NULL, 'T'},
@@ -98,7 +101,7 @@ int parse_settings(int argc, char *argv[], struct settings *s)
             {"target-size", required_argument, NULL, 'S'},
             {"keysteer",    no_argument,       NULL, 'K'},
         };
-    static const char *short_opts = "t:C:p:k:n:uz:v:g:T:w:c:d:s:o:r:S:K";
+    static const char *short_opts = "t:C:p:k:n:uzh:v:g:T:w:c:d:s:o:r:S:K";
     int c, opt_idx, done = 0;
     char *end;
 
@@ -163,6 +166,15 @@ int parse_settings(int argc, char *argv[], struct settings *s)
                 s->keydistparams.zipf.s = strtod(optarg, &end);
                 if (!*optarg || *end) {
                     fprintf(stderr, "Zipf parameter needs to be a floating "
+                            "point number.\n");
+                    return -1;
+                }
+                break;
+            case 'h':
+                s->keydist = DIST_HOT;
+                s->keydistparams.hot.keys = strtod(optarg, &end);
+                if (!*optarg || *end) {
+                    fprintf(stderr, "Hotset parameter needs to be a floating "
                             "point number.\n");
                     return -1;
                 }
@@ -264,9 +276,16 @@ int parse_settings(int argc, char *argv[], struct settings *s)
 
     if(s->target_size != 0)
         s->keynum = s->target_size / (s->keysize + s->valuesize);
-    fprintf(stderr, "Number of keys = %u (size %.2f GB)\n", 
-        s->keynum, ((double)s->keynum * (double)(s->keysize + s->valuesize)) / ((double)(1024 * 1024 * 1024)));
-
+    
+    printf("Number of keys = %u (size %.2f GB)\n", s->keynum, 
+        ((double)s->keynum * (double)(s->keysize + s->valuesize)) 
+        / ((double)(1024 * 1024 * 1024)));
+    
+    if(s->keydist == DIST_HOT) {
+        printf("Hot set size = %.2f GB\n", s->keydistparams.hot.keys * 
+            ((double)s->keynum * (double)(s->keysize + s->valuesize)) 
+            / ((double)(1024 * 1024 * 1024)));
+    }
     // TODO: ensure key size / key num combination is valid
 
     return 0;
