@@ -3,6 +3,8 @@ import re
 import sys
 import numpy as np
 
+MAX_LATENCY = 200
+
 if len(sys.argv) >= 2:
     BG_PREFIXES=sys.argv[1].split(",")
 else:
@@ -24,7 +26,6 @@ print(RES)
 
 hist_pattern = re.compile(r"Hist\[[0-9]+\]=[0-9]+")
 tput_pattern = re.compile(r"Final throughput = [0-9]+\.[0-9]+ mops")
-MAX_LATENCY = 52
 
 for file_pref in BG_PREFIXES:
     latencies = dict()
@@ -65,7 +66,7 @@ for file_pref in BG_PREFIXES:
     # Output histogram
     cdf = dict()
     total_sum = dict()
-    outfile.write("Latency\t")
+    outfile.write("Latency percentiles\t")
     for app in BG_APPS:
         cdf[app] = 0
         total_sum[app] = np.sum(latencies[app])
