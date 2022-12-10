@@ -10,3 +10,6 @@
 [submodule "linux"]
 	path = linux
 	url = https://github.com/aj-austin/linux.git
+[submodule "apps/nas-bt-c-benchmark"]
+	path = apps/nas-bt-c-benchmark
+	url = https://gitlab.cs.washington.edu/simpeter/nas-bt-c-benchmark.git
