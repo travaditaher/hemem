@@ -51,6 +51,9 @@ GAPBS:
 ./apps/gapbs/bc:
 	$(MAKE) GAPBS;
 
+./apps/nas-bt-c-benchmark/NPB-OMP/BT/bt:
+	$(MAKE) BT;
+
 # <------------------------------ RUN COMMANDS ------------------------------> 
 
 BASE_NODE ?= 0
@@ -98,9 +101,10 @@ SETUP_CMD = export LD_LIBRARY_PATH=./src:./Hoard/src:$LD_LIBRARY_PATH; \
 	echo 1000000 > /proc/sys/vm/max_map_count;
 HEMEM_PRELOAD = LD_PRELOAD=./src/libhemem.so
 
-FLEXKV_NICE ?= nice -20
-FLEXKV_SERVER_WAIT ?= 60
-FLEXKV_SAMPLE_TIME ?= 600
+FLEXKV_NICE     ?= nice -20
+FLEXKV_S_WAIT   ?= 60
+FLEXKV_WARMUP   ?= 120
+FLEXKV_RUNTIME  ?= 600
 FLEXKV_HOT_FRAC ?= 0.25
 # TODO: Can we somehow launch client after server is setup
 # instead of waiting an arbitrary amount of time and hoping
@@ -110,10 +114,11 @@ run_flexkvs: ./apps/flexkvs/flexkvs ./apps/flexkvs/kvsbench
 
 	${PRELOAD} ${FLEXKV_NICE} ${NUMA_CMD} --physcpubind=${FLEXKV_CPUS} \
 		./apps/flexkvs/flexkvs flexkvs.conf ${FLEXKV_THDS} ${FLEXKV_SIZE} & \
-	sleep ${FLEXKV_SERVER_WAIT}; \
+	sleep ${FLEXKV_S_WAIT}; \
 	${FLEXKV_NICE} ${NUMA_CMD_CLIENT} \
-		./apps/flexkvs/kvsbench -t ${FLEXKV_THDS} -T ${FLEXKV_SAMPLE_TIME} \
-		-h ${FLEXKV_HOT_FRAC} 127.0.0.1:11211 -S $$((15*${FLEXKV_SIZE}/16)) > ${RES}/${PREFIX}_flexkv.txt;
+		./apps/flexkvs/kvsbench -t ${FLEXKV_THDS} -w ${FLEXKV_WARMUP} \
+		-T ${FLEXKV_RUNTIME} -h ${FLEXKV_HOT_FRAC} 127.0.0.1:11211 \
+		-S $$((15*${FLEXKV_SIZE}/16)) > ${RES}/${PREFIX}_flexkv.txt;
 
 GUPS_ITERS ?= 2000000000
 run_gups: ./microbenchmarks/gups
@@ -130,7 +135,7 @@ run_gups_pebs: ./microbenchmarks/gups-pebs
 		./microbenchmarks/gups-pebs ${APP_THDS} ${GUPS_ITERS} \
 		$${log_size} 8 $${log_size} > ${RES}/${PREFIX}_gups_pebs.txt;
 
-GAPBS_TRIALS ?= 15
+GAPBS_TRIALS ?= 25
 run_gapbs: ./apps/gapbs/bc
 	NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} NVMOFFSET=${NVMOFFSET} \
 	DRAMOFFSET=${DRAMOFFSET} OMP_THREAD_LIMIT=${APP_THDS} \
@@ -166,10 +171,10 @@ run_bg_dram_base: all
 run_bg_hw_tier: all
 	PREFIX=bg_hw_tier; \
 	FLEXKV_SIZE=$$((320*1024*1024*1024)); \
-	#$(MAKE) run_flexkvs FLEXKV_SIZE=$${FLEXKV_SIZE} PRELOAD="" PREFIX=$${PREFIX}_Isolated; \
-	#$(MAKE) run_flexkvs FLEXKV_SIZE=$${FLEXKV_SIZE} PRELOAD="" PREFIX=$${PREFIX}_gups & \
-	#$(MAKE) run_gups APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}; \
-	#wait; \
+	$(MAKE) run_flexkvs FLEXKV_SIZE=$${FLEXKV_SIZE} PRELOAD="" PREFIX=$${PREFIX}_Isolated; \
+	$(MAKE) run_flexkvs FLEXKV_SIZE=$${FLEXKV_SIZE} PRELOAD="" PREFIX=$${PREFIX}_gups & \
+	$(MAKE) run_gups APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}; \
+	wait; \
 	$(MAKE) run_gapbs PRELOAD="" APP_SIZE=${GAPBS_SIZE} GAPBS_TRIALS=$$((${GAPBS_TRIALS} * 3)) PREFIX=$${PREFIX} & \
 	sleep 600; \
 	$(MAKE) run_flexkvs FLEXKV_SIZE=$${FLEXKV_SIZE} PRELOAD="" PREFIX=$${PREFIX}_gapbs; \
@@ -205,13 +210,13 @@ run_test_bg_sw_tier: all
 	NVMSIZE=$$((${NVMSIZE}/2)); \
 	${SETUP_CMD} \
 	PREFIX=bg_test_hemem; \
-	#$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
-	#	FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_Isolated; \
-	#$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
-	#	FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gups & \
-	#$(MAKE) run_gups_pebs NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
-	#	PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}; \
-	#wait; \
+	$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
+		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_Isolated; \
+	$(MAKE) run_flexkvs NVMSIZE=$${NVMSIZE} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
+		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gups & \
+	$(MAKE) run_gups_pebs NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
+		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}; \
+	wait; \
 	$(MAKE) run_gapbs NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
 		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GAPBS_SIZE} PREFIX=$${PREFIX} & \
 	sleep 600; \
@@ -246,3 +251,6 @@ BG_PREFIXES = "bg_dram_base,bg_hw_tier,bg_mini_hemem,bg_hemem,bg_test_hemem"
 BG_APPS = "Isolated,gups,gapbs"
 extract_bg: all
 	python extract_script.py ${BG_PREFIXES} ${BG_APPS} ${RES}
+
+extract_bg_timeline: all
+	python extract_timeline.py ${BG_PREFIXES} ${BG_APPS} ${RES}
