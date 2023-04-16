@@ -20,6 +20,9 @@
 #include "timer.h"
 #include "spsc-ring.h"
 
+uint64_t migration_thread_cpu;
+uint64_t scanning_thread_cpu;
+
 static struct fifo_list dram_hot_list;
 static struct fifo_list dram_cold_list;
 static struct fifo_list nvm_hot_list;
@@ -35,6 +38,7 @@ uint64_t global_clock = 0;
 uint64_t hemem_pages_cnt = 0;
 uint64_t other_pages_cnt = 0;
 uint64_t total_pages_cnt = 0;
+uint64_t accesses_cnt[NPBUFTYPES];
 uint64_t zero_pages_cnt = 0;
 uint64_t throttle_cnt = 0;
 uint64_t unthrottle_cnt = 0;
@@ -118,7 +122,7 @@ void *pebs_scan_thread()
 
   thread = pthread_self();
   CPU_ZERO(&cpuset);
-  CPU_SET(SCANNING_THREAD_CPU, &cpuset);
+  CPU_SET(scanning_thread_cpu, &cpuset);
   int s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (s != 0) {
     perror("pthread_setaffinity_np");
@@ -126,7 +130,7 @@ void *pebs_scan_thread()
   }
 
   for(;;) {
-    for (int i = 0; i < PEBS_NPROCS; i++) {
+    for (int i = start_cpu; i < start_cpu + num_cores; i++) {
       for(int j = 0; j < NPBUFTYPES; j++) {
         struct perf_event_mmap_page *p = perf_page[i][j];
         char *pbuf = (char *)p + p->data_offset;
@@ -168,6 +172,8 @@ void *pebs_scan_thread()
                         make_cold_request(page);
                     }
                  }
+
+                  accesses_cnt[j]++;
 
                   page->accesses[DRAMREAD] >>= (global_clock - page->local_clock);
                   page->accesses[NVMREAD] >>= (global_clock - page->local_clock);
@@ -486,7 +492,7 @@ void *pebs_policy_thread()
 
   thread = pthread_self();
   CPU_ZERO(&cpuset);
-  CPU_SET(MIGRATION_THREAD_CPU, &cpuset);
+  CPU_SET(migration_thread_cpu, &cpuset);
   int s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (s != 0) {
     perror("pthread_setaffinity_np");
@@ -726,7 +732,11 @@ void pebs_init(void)
 
   LOG("pebs_init: started\n");
 
-  for (int i = 0; i < PEBS_NPROCS; i++) {
+
+  scanning_thread_cpu = fault_thread_cpu + 1;
+  migration_thread_cpu = scanning_thread_cpu + 1;
+
+  for (int i = start_cpu; i < start_cpu + num_cores; i++) {
     //perf_page[i][READ] = perf_setup(0x1cd, 0x4, i);  // MEM_TRANS_RETIRED.LOAD_LATENCY_GT_4
     //perf_page[i][READ] = perf_setup(0x81d0, 0, i);   // MEM_INST_RETIRED.ALL_LOADS
     perf_page[i][DRAMREAD] = perf_setup(0x1d3, 0, i, DRAMREAD);      // MEM_LOAD_L3_MISS_RETIRED.LOCAL_DRAM
@@ -790,7 +800,7 @@ void pebs_init(void)
 
 void pebs_shutdown()
 {
-  for (int i = 0; i < PEBS_NPROCS; i++) {
+  for (int i = start_cpu; i < start_cpu + num_cores; i++) {
     for (int j = 0; j < NPBUFTYPES; j++) {
       ioctl(pfd[i][j], PERF_EVENT_IOC_DISABLE, 0);
       //munmap(perf_page[i][j], sysconf(_SC_PAGESIZE) * PERF_PAGES);
@@ -800,14 +810,14 @@ void pebs_shutdown()
 
 void pebs_stats()
 {
-  LOG_STATS("\tdram_hot_list.numentries: [%ld]\tdram_cold_list.numentries: [%ld]\tnvm_hot_list.numentries: [%ld]\tnvm_cold_list.numentries: [%ld]\themem_pages: [%lu]\ttotal_pages: [%lu]\tzero_pages: [%ld]\tthrottle/unthrottle_cnt: [%ld/%ld]\tcools: [%ld]\n",
+  LOG_STATS("\tdram_hot_list.numentries: [%ld]\tdram_cold_list.numentries: [%ld]\tnvm_hot_list.numentries: [%ld]\tnvm_cold_list.numentries: [%ld]\themem_pages: [%lu]\tdram_pages: [%lu]\tnvm_pages: [%ld]\tthrottle/unthrottle_cnt: [%ld/%ld]\tcools: [%ld]\n",
           dram_hot_list.numentries,
           dram_cold_list.numentries,
           nvm_hot_list.numentries,
           nvm_cold_list.numentries,
           hemem_pages_cnt,
-          total_pages_cnt,
-          zero_pages_cnt,
+          accesses_cnt[DRAMREAD],
+          accesses_cnt[NVMREAD],
           throttle_cnt,
           unthrottle_cnt,
           cools);
@@ -816,4 +826,5 @@ void pebs_stats()
     (double)(nvm_hot_list.numentries + nvm_cold_list.numentries) * ((double)PAGE_SIZE) / (1024.0 * 1024.0 * 1024.0));
   fflush(stdout);
   hemem_pages_cnt = total_pages_cnt =  throttle_cnt = unthrottle_cnt = 0;
+  accesses_cnt[DRAMREAD] = accesses_cnt[NVMREAD] = 0;
 }

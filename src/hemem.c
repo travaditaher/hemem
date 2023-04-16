@@ -39,6 +39,12 @@ off_t dramoffset = 0;
 char* drampath = NULL;
 char* nvmpath = NULL;
 
+uint64_t start_cpu = 0;
+uint64_t num_cores = 0;
+
+uint64_t fault_thread_cpu = 0;
+uint64_t stats_thread_cpu = 0;
+
 int dramfd = -1;
 int nvmfd = -1;
 long uffd = -1;
@@ -154,7 +160,7 @@ static void *hemem_stats_thread()
 
   thread = pthread_self();
   CPU_ZERO(&cpuset);
-  CPU_SET(STATS_THREAD_CPU, &cpuset);
+  CPU_SET(stats_thread_cpu, &cpuset);
   int s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (s != 0) {
     perror("pthread_setaffinity_np");
@@ -214,6 +220,20 @@ void hemem_init()
     assert(r == 0);
   }
 */
+  char* start_cpu_string = getenv("HEMEM_START_CPU");
+  if(start_cpu_string != NULL)
+    start_cpu = strtoull(start_cpu_string, NULL, 10);
+  else
+    start_cpu = START_THREAD_DEFAULT;
+
+  stats_thread_cpu = start_cpu;
+  fault_thread_cpu = start_cpu;
+
+  char* num_cores_string = getenv("HEMEM_NUM_CORES");
+  if(num_cores_string != NULL)
+    num_cores = strtoull(num_cores_string, NULL, 10);
+  else
+    num_cores = PEBS_NPROCS;
   
   hememlogf = fopen("logs.txt", "w+");
   if (hememlogf == NULL) {
@@ -1031,7 +1051,7 @@ void *handle_fault()
 
   thread = pthread_self();
   CPU_ZERO(&cpuset);
-  CPU_SET(FAULT_THREAD_CPU, &cpuset);
+  CPU_SET(fault_thread_cpu, &cpuset);
   int s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (s != 0) {
     perror("pthread_setaffinity_np");
@@ -1200,7 +1220,7 @@ uint64_t hemem_get_bits(struct hemem_page *page)
 void hemem_print_stats(FILE *fd)
 {
 
-  fprintf(fd, "mem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
+  LOG_STATS("mem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
                mem_allocated, 
                pages_allocated, 
                missing_faults_handled, 
