@@ -160,7 +160,7 @@ static void *hemem_stats_thread()
 
   thread = pthread_self();
   CPU_ZERO(&cpuset);
-  CPU_SET(stats_thread_cpu, &cpuset);
+  CPU_SET(STATS_THREAD_CPU_DEFAULT, &cpuset);
   int s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (s != 0) {
     perror("pthread_setaffinity_np");
@@ -1051,7 +1051,7 @@ void *handle_fault()
 
   thread = pthread_self();
   CPU_ZERO(&cpuset);
-  CPU_SET(fault_thread_cpu, &cpuset);
+  CPU_SET(FAULT_THREAD_CPU_DEFAULT, &cpuset);
   int s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   if (s != 0) {
     perror("pthread_setaffinity_np");

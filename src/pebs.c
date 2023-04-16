@@ -20,6 +20,7 @@
 #include "timer.h"
 #include "spsc-ring.h"
 
+uint64_t hemem_cpu_start;
 uint64_t migration_thread_cpu;
 uint64_t scanning_thread_cpu;
 
@@ -39,6 +40,7 @@ uint64_t hemem_pages_cnt = 0;
 uint64_t other_pages_cnt = 0;
 uint64_t total_pages_cnt = 0;
 uint64_t accesses_cnt[NPBUFTYPES];
+uint64_t core_accesses_cnt[PEBS_NPROCS];
 uint64_t zero_pages_cnt = 0;
 uint64_t throttle_cnt = 0;
 uint64_t unthrottle_cnt = 0;
@@ -174,6 +176,7 @@ void *pebs_scan_thread()
                  }
 
                   accesses_cnt[j]++;
+                  core_accesses_cnt[i]++;
 
                   page->accesses[DRAMREAD] >>= (global_clock - page->local_clock);
                   page->accesses[NVMREAD] >>= (global_clock - page->local_clock);
@@ -732,8 +735,13 @@ void pebs_init(void)
 
   LOG("pebs_init: started\n");
 
-
-  scanning_thread_cpu = fault_thread_cpu + 1;
+  char* start_cpu_string = getenv("HEMEM_MGR_START_CPU");
+  if(start_cpu_string != NULL)
+    hemem_cpu_start = strtoull(start_cpu_string, NULL, 10);
+  else
+    hemem_cpu_start = START_THREAD_DEFAULT;
+  
+  scanning_thread_cpu = hemem_cpu_start;
   migration_thread_cpu = scanning_thread_cpu + 1;
 
   for (int i = start_cpu; i < start_cpu + num_cores; i++) {
@@ -810,17 +818,25 @@ void pebs_shutdown()
 
 void pebs_stats()
 {
-  LOG_STATS("\tdram_hot_list.numentries: [%ld]\tdram_cold_list.numentries: [%ld]\tnvm_hot_list.numentries: [%ld]\tnvm_cold_list.numentries: [%ld]\themem_pages: [%lu]\tdram_pages: [%lu]\tnvm_pages: [%ld]\tthrottle/unthrottle_cnt: [%ld/%ld]\tcools: [%ld]\n",
+  uint64_t total_samples = 0;
+  LOG_STATS("\tdram_hot_list.numentries: [%ld]\tdram_cold_list.numentries: [%ld]\tnvm_hot_list.numentries: [%ld]\tnvm_cold_list.numentries: [%ld]\themem_pages: [%lu]\ttotal_pages: [%lu]\tzero_pages: [%ld]\tthrottle/unthrottle_cnt: [%ld/%ld]\tcools: [%ld]\n",
           dram_hot_list.numentries,
           dram_cold_list.numentries,
           nvm_hot_list.numentries,
           nvm_cold_list.numentries,
           hemem_pages_cnt,
-          accesses_cnt[DRAMREAD],
-          accesses_cnt[NVMREAD],
+          total_pages_cnt,
+          zero_pages_cnt,
           throttle_cnt,
           unthrottle_cnt,
           cools);
+  LOG_STATS("\tdram_accesses: [%lu]\tnvm_accesses: [%lu]\tsamples: [", accesses_cnt[DRAMREAD], accesses_cnt[NVMREAD]);
+  for (int i = 0; i < PEBS_NPROCS ; i++) {
+    LOG_STATS("%lu ", core_accesses_cnt[i]);
+    total_samples += core_accesses_cnt[i];
+    core_accesses_cnt[i] = 0;
+  }
+  LOG_STATS("]\ttotal_samples: [%lu]\n", total_samples);
   fprintf(stdout, "Total: %.2f GB DRAM, %.2f GB NVM\n",
     (double)(dram_hot_list.numentries + dram_cold_list.numentries) * ((double)PAGE_SIZE) / (1024.0 * 1024.0 * 1024.0), 
     (double)(nvm_hot_list.numentries + nvm_cold_list.numentries) * ((double)PAGE_SIZE) / (1024.0 * 1024.0 * 1024.0));

@@ -30,6 +30,7 @@
 #define SCANNING_THREAD_CPU_DEFAULT (FAULT_THREAD_CPU_DEFAULT + 1)
 #define MIGRATION_THREAD_CPU_DEFAULT (SCANNING_THREAD_CPU_DEFAULT + 1)
 
+extern uint64_t hemem_cpu_start;
 extern uint64_t scanning_thread_cpu;
 extern uint64_t migration_thread_cpu;
 
