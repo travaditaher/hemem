@@ -198,10 +198,14 @@ run_flexkvs_grow: ./apps/flexkvs/flexkvs ./apps/flexkvs/kvsbench
 GUPS_ITERS ?= 4000000000
 run_gups: ./microbenchmarks/gups
 	log_size=$$(printf "%.0f" $$(echo "l(${APP_SIZE})/l(2)"|bc -l)); \
-	${GUPS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} \
+	${GUPS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} PRELOAD=${PRELOAD} \
 		./microbenchmarks/gups ${APP_THDS} ${GUPS_ITERS} $${log_size} \
 		8 $${log_size} > ${RES}/${PREFIX}_gups.txt & \
-	perf stat -e instructions -I 1000 -p $$! -o ${RES}/${PREFIX}_gups_ipc.txt;
+	GUPS_PID=$$!;\
+	perf stat -e instructions -I 1000 -p $$! -o ${RES}/${PREFIX}_gups_ipc.txt & \
+	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
+		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_mem_usage.txt & \
+	fi; \
 
 run_gups_pebs: ./microbenchmarks/gups-pebs
 	log_size=$$(printf "%.0f" $$(echo "l(${APP_SIZE})/l(2)"|bc -l)); \
@@ -210,7 +214,11 @@ run_gups_pebs: ./microbenchmarks/gups-pebs
 	${GUPS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./microbenchmarks/gups-pebs ${APP_THDS} ${GUPS_ITERS} \
 		$${log_size} 8 $${log_size} > ${RES}/${PREFIX}_gups_pebs.txt & \
-	perf stat -e instructions -I 1000 -p $$! -o ${RES}/${PREFIX}_gups_pebs_ipc.txt;
+	GUPS_PID=$$!;\
+	perf stat -e instructions -I 1000 -p $${GUPS_PID} -o ${RES}/${PREFIX}_gups_pebs_ipc.txt &\
+  if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
+		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_pebs_mem_usage.txt & \
+	fi; \
 
 GAPBS_TRIALS ?= 10
 run_gapbs: ./apps/gapbs/bc
@@ -218,7 +226,11 @@ run_gapbs: ./apps/gapbs/bc
 	DRAMOFFSET=${DRAMOFFSET} OMP_THREAD_LIMIT=${APP_THDS} \
 	${GAPBS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./apps/gapbs/bc -n ${GAPBS_TRIALS} -g ${APP_SIZE} > ${RES}/${PREFIX}_gapbs.txt & \
-	perf stat -e instructions -I 1000 -p $$! -o ${RES}/${PREFIX}_gapbs_ipc.txt;
+	GAPBS_PID=$$!;\
+	perf stat -e instructions -I 1000 -p $${GAPBS_PID} -o ${RES}/${PREFIX}_gapbs_ipc.txt &\
+	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
+		./scripts/numastat.sh $${GAPBS_PID} > ${RES}/$${PREFIX}_gapbs_mem_usage.txt & \
+	fi;
 
 # TODO: Command to run BT
 run_bt: 
@@ -226,7 +238,11 @@ run_bt:
 	NVMOFFSET=${NVMOFFSET} DRAMOFFSET=${DRAMOFFSET} OMP_THREAD_LIMIT=${APP_THDS} \
 	${BT_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./apps/nas-bt-c-benchmark/NPB-OMP/bin/bt.${BT_SIZE} > ${RES}/${PREFIX}_bt.txt & \
-	perf stat -e instructions -I 1000 -p $$! -o ${RES}/${PREFIX}_bt_ipc.txt;
+	BT_PID=$$!;\
+	perf stat -e instructions -I 1000 -p $${BT_PID} -o ${RES}/${PREFIX}_bt_ipc.txt &\
+	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
+		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_bt_mem_usage.txt & \
+	fi;
 
 run_bg_dram_base: all
 	PREFIX=bg_dram_base; \
