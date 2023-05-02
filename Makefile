@@ -183,7 +183,7 @@ run_flexkvs: ./apps/flexkvs/flexkvs ./apps/flexkvs/kvsbench
 run_flexkvs_grow: ./apps/flexkvs/flexkvs ./apps/flexkvs/kvsbench
 	-./apps/flexkvs/unlink_socks.sh; # Cleanup
 
-	NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
+	HEMEM_START_CPU=${MGR_CPU_START} NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
 	NVMOFFSET=${NVMOFFSET} DRAMOFFSET=${DRAMOFFSET} \
 	${FLEXKV_PRTY} ${FLEXKV_NICE} ${NUMA_CMD} --physcpubind=${FLEXKV_CPUS} \
 		${PRELOAD} ./apps/flexkvs/flexkvs flexkvs.conf ${FLEXKV_THDS} ${FLEXKV_SIZE} & \
@@ -202,44 +202,44 @@ run_gups: ./microbenchmarks/gups
 		./microbenchmarks/gups ${APP_THDS} ${GUPS_ITERS} $${log_size} \
 		8 $${log_size} > ${RES}/${PREFIX}_gups.txt & \
 	GUPS_PID=$$!;\
-	perf stat -e instructions -I 1000 -p $$! -o ${RES}/${PREFIX}_gups_ipc.txt & \
+	perf stat -e instructions -I 1000 -p $${GUPS_PID} -C ${APP_CPUS} -o ${RES}/${PREFIX}_gups_ipc.txt & \
 	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
 		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_mem_usage.txt & \
 	fi; \
 
 run_gups_pebs: ./microbenchmarks/gups-pebs
 	log_size=$$(printf "%.0f" $$(echo "l(${APP_SIZE})/l(2)"|bc -l)); \
-	NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
+	HEMEM_START_CPU=${MGR_CPU_START} NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
 	NVMOFFSET=${NVMOFFSET} DRAMOFFSET=${DRAMOFFSET} \
 	${GUPS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./microbenchmarks/gups-pebs ${APP_THDS} ${GUPS_ITERS} \
 		$${log_size} 8 $${log_size} > ${RES}/${PREFIX}_gups_pebs.txt & \
 	GUPS_PID=$$!;\
-	perf stat -e instructions -I 1000 -p $${GUPS_PID} -o ${RES}/${PREFIX}_gups_pebs_ipc.txt &\
+	perf stat -e instructions -I 1000 -C ${APP_CPUS} -o ${RES}/${PREFIX}_gups_pebs_ipc.txt &\
   if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
 		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_pebs_mem_usage.txt & \
 	fi; \
 
 GAPBS_TRIALS ?= 10
 run_gapbs: ./apps/gapbs/bc
-	NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} NVMOFFSET=${NVMOFFSET} \
+	HEMEM_START_CPU=${MGR_CPU_START} NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} NVMOFFSET=${NVMOFFSET} \
 	DRAMOFFSET=${DRAMOFFSET} OMP_THREAD_LIMIT=${APP_THDS} \
 	${GAPBS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./apps/gapbs/bc -n ${GAPBS_TRIALS} -g ${APP_SIZE} > ${RES}/${PREFIX}_gapbs.txt & \
 	GAPBS_PID=$$!;\
-	perf stat -e instructions -I 1000 -p $${GAPBS_PID} -o ${RES}/${PREFIX}_gapbs_ipc.txt &\
+	perf stat -e instructions -I 1000 -C ${APP_CPUS} -o ${RES}/${PREFIX}_gapbs_ipc.txt &\
 	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
 		./scripts/numastat.sh $${GAPBS_PID} > ${RES}/$${PREFIX}_gapbs_mem_usage.txt & \
 	fi;
 
 # TODO: Command to run BT
 run_bt: 
-	NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
+	HEMEM_START_CPU=${MGR_CPU_START} NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
 	NVMOFFSET=${NVMOFFSET} DRAMOFFSET=${DRAMOFFSET} OMP_THREAD_LIMIT=${APP_THDS} \
 	${BT_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./apps/nas-bt-c-benchmark/NPB-OMP/bin/bt.${BT_SIZE} > ${RES}/${PREFIX}_bt.txt & \
 	BT_PID=$$!;\
-	perf stat -e instructions -I 1000 -p $${BT_PID} -o ${RES}/${PREFIX}_bt_ipc.txt &\
+	perf stat -e instructions -I 1000 -C ${APP_CPUS} -o ${RES}/${PREFIX}_bt_ipc.txt &\
 	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
 		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_bt_mem_usage.txt & \
 	fi;
@@ -337,6 +337,7 @@ run_bg_sw_tier: all
 	wait $${FLEX_PID}; \
 	pkill flexkvs;\
 	pkill gups-pebs;\
+	pkill perf;\
 	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} NVMSIZE=$${NVMSIZE} DRAMSIZE=$${DRAMSIZE} PRELOAD="${HEMEM_PRELOAD}" \
 		NVMOFFSET=0 DRAMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gapbs & \
 	FLEX_PID=$$!; \
@@ -346,6 +347,7 @@ run_bg_sw_tier: all
 	wait $${FLEX_PID}; \
 	pkill flexkvs;\
 	pkill bc;\
+	pkill perf;\
 	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} NVMSIZE=$${NVMSIZE} DRAMSIZE=$${DRAMSIZE} PRELOAD="${HEMEM_PRELOAD}" \
 		NVMOFFSET=0 DRAMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_bt & \
 	FLEX_PID=$$!; \
@@ -355,6 +357,7 @@ run_bg_sw_tier: all
 	wait $${FLEX_PID}; \
 	pkill flexkvs;\
 	pkill bt.E;\
+	pkill perf;\
 	${KILL_PERF}
 
 # FlexKV occupies the entire DRAM and half of NVM, and other app the other half of NVM
@@ -377,6 +380,7 @@ run_test_bg_sw_tier: all
 	wait $${FLEX_PID}; \
 	pkill flexkvs;\
 	pkill gups-pebs;\
+	pkill perf;\
 	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=${DRAMSIZE} DRAMOFFSET=0 NVMSIZE=$${NVMSIZE} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
 		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gapbs & \
 	FLEX_PID=$$!; \
@@ -385,6 +389,7 @@ run_test_bg_sw_tier: all
 	wait $${FLEX_PID}; \
 	pkill flexkvs;\
 	pkill bc;\
+	pkill perf;\
 	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=${DRAMSIZE} DRAMOFFSET=0 NVMSIZE=$${NVMSIZE} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
 		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_bt & \
 	FLEX_PID=$$!; \
@@ -393,6 +398,7 @@ run_test_bg_sw_tier: all
 	wait $${FLEX_PID}; \
 	pkill flexkvs;\
 	pkill bt.E;\
+	pkill perf;\
 	${KILL_PERF}
 
 # FlexKV's working set fits into DRAM. DRAM is split equally between FlexKV and other app
