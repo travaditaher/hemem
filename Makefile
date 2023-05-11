@@ -361,6 +361,48 @@ run_bg_sw_tier: all
 	${KILL_PERF}
 
 # FlexKV occupies the entire DRAM and half of NVM, and other app the other half of NVM
+run_test_nodram_bg_sw_tier: all
+	# HeMem runs
+	FLEXKV_SIZE=$$((320*1024*1024*1024)); \
+	NVMSIZE1=$$(($${FLEXKV_SIZE})); \
+	NVMSIZE2=$$((${NVMSIZE} - $${FLEXKV_SIZE})); \
+	${SETUP_CMD} \
+	PREFIX=bg_nodram_test_hemem; \
+	file=${RES}/$${PREFIX}_Isolated; \
+	${RUN_PERF} \
+	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=0 DRAMOFFSET=${DRAMSIZE} NVMSIZE=$${NVMSIZE1} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
+		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_Isolated; \
+	pkill flexkvs;\
+	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=0 DRAMOFFSET=${DRAMSIZE} NVMSIZE=$${NVMSIZE1} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
+		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gups & \
+	FLEX_PID=$$!; \
+	$(MAKE) run_gups_pebs HEMEM_MGR_START_CPU=2 NVMSIZE=$${NVMSIZE2} DRAMSIZE=${DRAMSIZE} NVMOFFSET=$${NVMSIZE1} DRAMOFFSET=0 \
+		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}& \
+	wait $${FLEX_PID}; \
+	pkill flexkvs;\
+	pkill gups-pebs;\
+	pkill perf;\
+	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=0 DRAMOFFSET=${DRAMSIZE} NVMSIZE=$${NVMSIZE1} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
+		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_gapbs & \
+	FLEX_PID=$$!; \
+	$(MAKE) run_gapbs HEMEM_MGR_START_CPU=2 NVMSIZE=$${NVMSIZE2} DRAMSIZE=${DRAMSIZE} NVMOFFSET=$${NVMSIZE1} DRAMOFFSET=0 \
+		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GAPBS_SIZE} PREFIX=$${PREFIX} & \
+	wait $${FLEX_PID}; \
+	pkill flexkvs;\
+	pkill bc;\
+	pkill perf;\
+	$(MAKE) run_flexkvs HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=0 DRAMOFFSET=${DRAMSIZE} NVMSIZE=$${NVMSIZE1} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
+		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_bt & \
+	FLEX_PID=$$!; \
+	$(MAKE) run_bt HEMEM_MGR_START_CPU=2 NVMSIZE=$${NVMSIZE2} DRAMSIZE=${DRAMSIZE} NVMOFFSET=$${NVMSIZE1} DRAMOFFSET=0 \
+		PRELOAD="${HEMEM_PRELOAD}" BT_SIZE=${BT_SIZE} PREFIX=$${PREFIX} & \
+	wait $${FLEX_PID}; \
+	pkill flexkvs;\
+	pkill bt.E;\
+	pkill perf;\
+	${KILL_PERF}
+
+# FlexKV occupies the entire DRAM and half of NVM, and other app the other half of NVM
 run_test_bg_sw_tier: all
 	# HeMem runs
 	FLEXKV_SIZE=$$((320*1024*1024*1024)); \
@@ -586,7 +628,7 @@ run_eval_dynamic_hw: all
 	pkill flexkvs;
 
 #BG_PREFIXES = "bg_dram_base,bg_hw_tier,bg_znuma_tier,bg_mini_hemem,bg_hemem,bg_test_hemem"
-BG_PREFIXES = "bg_dram_base,bg_mini_hemem,bg_hemem,bg_test_hemem"
+BG_PREFIXES = "bg_dram_base,bg_mini_hemem,bg_hemem,bg_test_hemem,bg_nodram_test_hemem"
 BG_APPS = "Isolated,gups,gapbs,bt"
 extract_bg: all
 	python scripts/extract_script.py ${BG_PREFIXES} ${BG_APPS} ${RES}
