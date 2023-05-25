@@ -69,15 +69,6 @@ struct gups_args {
   uint64_t hotsize;        // size of hot set
 };
 
-
-static inline uint64_t rdtscp(void)
-{
-    uint32_t eax, edx;
-    // why is "ecx" in clobber list here, anyway? -SG&MH,2017-10-05
-    __asm volatile ("rdtscp" : "=a" (eax), "=d" (edx) :: "ecx", "memory");
-    return ((uint64_t)edx << 32) | eax;
-}
-
 static unsigned long updates, nelems;
 
 static uint64_t lfsr_fast(uint64_t lfsr)
