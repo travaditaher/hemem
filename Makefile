@@ -204,27 +204,29 @@ run_flexkvs_grow: ./apps/flexkvs/flexkvs ./apps/flexkvs/kvsbench
 GUPS_ITERS ?= 0
 run_gups: ./microbenchmarks/gups
 	log_size=$$(printf "%.0f" $$(echo "l(${APP_SIZE})/l(2)"|bc -l)); \
-	${GUPS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} PRELOAD=${PRELOAD} \
+	hot_size=$$(printf "%.0f" $$(echo "$${log_size} - 2"|bc -l)); \
+	${GUPS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./microbenchmarks/gups ${APP_THDS} ${GUPS_ITERS} $${log_size} \
-		8 $${log_size} > ${RES}/${PREFIX}_gups.txt & \
-	GUPS_PID=$$!;\
-	perf stat -e instructions -I 1000 -p $${GUPS_PID} -C ${APP_CPUS} -o ${RES}/${PREFIX}_gups_ipc.txt & \
+		8 $${hot_size} 0 ${RES}/${PREFIX}_persecond_gups.txt > ${RES}/${PREFIX}_gups.txt & \
+	GUPS_PID=$$!; \
+	perf stat -e instructions -I 1000 -p $${GUPS_PID} -o ${RES}/${PREFIX}_gups_ipc.txt &\
 	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
 		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_mem_usage.txt & \
 	fi; \
 
 run_gups_pebs: ./microbenchmarks/gups-pebs
 	log_size=$$(printf "%.0f" $$(echo "l(${APP_SIZE})/l(2)"|bc -l)); \
-	HEMEM_START_CPU=${MGR_CPU_START} NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
-	NVMOFFSET=${NVMOFFSET} DRAMOFFSET=${DRAMOFFSET} \
+	hot_size=$$(printf "%.0f" $$(echo "$${log_size} - 2"|bc -l)); \
+	NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} \
+	NVMOFFSET=${NVMOFFSET} DRAMOFFSET=${DRAMOFFSET} REQ_DRAM=${REQ_DRAM} \
 	${GUPS_PRTY} nice -20 ${NUMA_CMD} --physcpubind=${APP_CPUS} ${PRELOAD} \
 		./microbenchmarks/gups-pebs ${APP_THDS} ${GUPS_ITERS} \
-		$${log_size} 8 $${log_size} > ${RES}/${PREFIX}_gups_pebs.txt & \
+		$${log_size} 8 $${hot_size} 0 ${RES}/${PREFIX}_persecond_gups.txt > ${RES}/${PREFIX}_gups_pebs.txt & \
 	GUPS_PID=$$!;\
-	perf stat -e instructions -I 1000 -C ${APP_CPUS} -o ${RES}/${PREFIX}_gups_pebs_ipc.txt &\
-  if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
+	perf stat -e instructions -I 1000 -p $${GUPS_PID} -o ${RES}/${PREFIX}_gups_pebs_ipc.txt &\
+	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
 		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_pebs_mem_usage.txt & \
-	fi; \
+	fi;
 
 GAPBS_TRIALS ?= 10
 run_gapbs: ./apps/gapbs/bc
