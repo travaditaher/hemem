@@ -46,6 +46,9 @@ uint64_t throttle_cnt = 0;
 uint64_t unthrottle_cnt = 0;
 uint64_t cools = 0;
 
+_Atomic volatile double miss_ratio = -1.0;
+FILE *miss_ratio_f = NULL;
+
 static struct perf_event_mmap_page *perf_page[PEBS_NPROCS][NPBUFTYPES];
 int pfd[PEBS_NPROCS][NPBUFTYPES];
 
@@ -732,8 +735,16 @@ void pebs_init(void)
   pthread_t kswapd_thread;
   pthread_t scan_thread;
   uint64_t** buffer;
+  char logpath[32];
 
   LOG("pebs_init: started\n");
+
+  snprintf(&logpath[0], sizeof(logpath) - 1, "/tmp/log-%d.txt", getpid());
+  miss_ratio_f = fopen(logpath, "w");
+  if (miss_ratio_f == NULL) {
+    perror("miss ratio file fopen");
+  }
+  assert(miss_ratio_f != NULL);
 
   char* start_cpu_string = getenv("HEMEM_MGR_START_CPU");
   if(start_cpu_string != NULL)
@@ -816,6 +827,11 @@ void pebs_shutdown()
   }
 }
 
+static inline double calc_miss_ratio()
+{
+  return ((1.0 * accesses_cnt[NVMREAD]) / (1.0 * (accesses_cnt[DRAMREAD] + accesses_cnt[NVMREAD])));
+}
+
 void pebs_stats()
 {
   uint64_t total_samples = 0;
@@ -842,5 +858,18 @@ void pebs_stats()
     (double)(nvm_hot_list.numentries + nvm_cold_list.numentries) * ((double)PAGE_SIZE) / (1024.0 * 1024.0 * 1024.0));
   fflush(stdout);
   hemem_pages_cnt = total_pages_cnt =  throttle_cnt = unthrottle_cnt = 0;
+
+  if (accesses_cnt[DRAMREAD] + accesses_cnt[NVMREAD] != 0) {
+    if (miss_ratio == -1.0) {
+      miss_ratio = calc_miss_ratio();
+    } else {
+      miss_ratio = (EWMA_FRAC * calc_miss_ratio()) + ((1 - EWMA_FRAC) * miss_ratio);
+    }
+  } else {
+    miss_ratio = -1.0;
+  }
   accesses_cnt[DRAMREAD] = accesses_cnt[NVMREAD] = 0;
+
+  fprintf(miss_ratio_f, "%f\n", miss_ratio);
+  fflush(miss_ratio_f);
 }

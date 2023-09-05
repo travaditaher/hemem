@@ -1220,7 +1220,8 @@ uint64_t hemem_get_bits(struct hemem_page *page)
 void hemem_print_stats(FILE *fd)
 {
 
-  LOG_STATS("mem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
+  LOG_STATS("pid: [%u]\tmem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
+               getpid(),
                mem_allocated, 
                pages_allocated, 
                missing_faults_handled, 
