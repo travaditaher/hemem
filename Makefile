@@ -114,19 +114,19 @@ DRAMOFFSET ?= 0
 FLEXKV_THDS ?= 4
 APP_THDS    ?= 8
 ifeq (${BASE_NODE}, 1)
-MGR_CPUS    ?= 24-31
+MGR_CPUS    ?= 24-27
 MGR_CPU_START ?= 24
-APP_CPUS    ?= 32-41
-APP_CPUS_START ?= 32
-FLEXKV_CPUS ?= 42-47
-FLEXKV_CPUS_START ?=42
+APP_CPUS    ?= 34-47
+APP_CPUS_START ?= 34
+FLEXKV_CPUS ?= 28-33
+FLEXKV_CPUS_START ?= 28
 else
 MGR_CPUS    ?= 0-3
 MGR_CPU_START ?= 0
-APP_CPUS    ?= 4-17
-APP_CPUS_START ?= 4
-FLEXKV_CPUS ?= 18-23
-FLEXKV_CPUS_START ?=18
+APP_CPUS    ?= 10-23
+APP_CPUS_START ?= 10
+FLEXKV_CPUS ?= 4-9
+FLEXKV_CPUS_START ?= 4
 endif
 
 FLEXKV_SIZE ?= $$((64*1024*1024*1024))
@@ -181,7 +181,7 @@ run_flexkvs: ./apps/flexkvs/flexkvs ./apps/flexkvs/kvsbench
 		${PRELOAD} ./apps/flexkvs/flexkvs flexkvs.conf ${FLEXKV_THDS} ${FLEXKV_SIZE} > ${RES}/${PREFIX}_server.txt & \
 	FLEXKVS_SERVER=$$!; \
 	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
-		perf stat -e faults -I 1000 -p $${FLEXKVS_SERVER} -o ${RES}/${PREFIX}_flexkv_faults.txt &\
+		perf stat -e faults -I 1000 -p $${FLEXKVS_SERVER} -o ${RES}/${PREFIX}_flexkv_faults.txt & \
 		${NUMASTAT} $${FLEXKVS_SERVER} > ${RES}/${PREFIX}_flexkv_mem_usage.txt & \
 	fi; \
 	./wait-kvs.sh ${RES}/${PREFIX}_server.txt; \
@@ -234,7 +234,7 @@ run_gups_pebs: ./microbenchmarks/gups-pebs
 		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_pebs_mem_usage.txt & \
 	fi;
 
-GAPBS_TRIALS ?= 10
+GAPBS_TRIALS ?= 50
 run_gapbs: ./apps/gapbs/bc
 	HEMEM_START_CPU=${MGR_CPU_START} NVMSIZE=${NVMSIZE} DRAMSIZE=${DRAMSIZE} NVMOFFSET=${NVMOFFSET} \
 	DRAMOFFSET=${DRAMOFFSET} OMP_THREAD_LIMIT=${APP_THDS} \

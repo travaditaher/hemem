@@ -56,7 +56,7 @@ extern double hotset_fraction;
 #define IGNORE_STRAGGLERS
 
 int threads;
-int start_cpu = 8;
+int start_cpu = 10;
 
 uint64_t hot_start = 0;
 volatile uint64_t hotsize = 0;
@@ -118,7 +118,7 @@ char *filename = "indices1.txt";
 
 FILE *hotsetfile = NULL;
 
-bool done_gups = false;
+volatile bool done_gups = false;
 unsigned completed_gups[MAX_THREADS] = {0};
 
 static void *do_gups(void *arguments)
@@ -157,7 +157,7 @@ static void *do_gups(void *arguments)
     if (lfsr % 100 < 90) {
       lfsr = lfsr_fast(lfsr);
       index1 = args->hot_start + (lfsr % hotsize);
-      uint64_t  tmp = field[index1];
+      uint64_t tmp = field[index1];
       tmp = tmp + i;
       field[index1] = tmp;
     }
