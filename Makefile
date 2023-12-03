@@ -157,7 +157,7 @@ KILL_PERF = kill $${PERF_CMD}; pkill perf; sleep 5;
 FLEXKV_NICE ?= nice -20
 FLEXKV_S_WAIT   ?= 240	
 FLEXKV_WARMUP   ?= 100	
-FLEXKV_RUNTIME  ?= 300
+FLEXKV_RUNTIME  ?= 200
 FLEXKV_HOT_FRAC ?= 0.25
 FLEXKV_HOT_FRAC2 ?= 0.25
 
@@ -218,7 +218,7 @@ run_gups: ./microbenchmarks/gups
 	perf stat -e instructions -I 1000 -p $${GUPS_PID} -o ${RES}/${PREFIX}_gups_ipc.txt &\
 	if [ ${ZNUMA_MEASURE} -gt 0 ]; then \
 		./scripts/numastat.sh $${GUPS_PID} > ${RES}/$${PREFIX}_gups_mem_usage.txt & \
-	fi; \
+	fi;
 
 run_gups_pebs: ./microbenchmarks/gups-pebs
 	log_size=$$(printf "%.0f" $$(echo "l(${APP_SIZE})/l(2)"|bc -l)); \
@@ -337,7 +337,6 @@ run_bg_sw_tier: all
 	NVMSIZE=$$((${NVMSIZE}/2)); DRAMSIZE=$$((${DRAMSIZE}/2)); \
 	${SETUP_CMD} \
 	PREFIX=bg_hemem; \
-	file=${RES}/$${PREFIX}_Isolated; \
 	${RUN_PERF} \
 	$(MAKE) run_flexkvs MAXMEM_MEASURE=1 HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} NVMSIZE=$${NVMSIZE} DRAMSIZE=$${DRAMSIZE} PRELOAD="${HEMEM_PRELOAD}" \
 		NVMOFFSET=0 DRAMOFFSET=0 FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_Isolated; \
@@ -349,6 +348,7 @@ run_bg_sw_tier: all
 		NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
 		APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX} & \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep gups-pebs).txt ${RES}/${PREFIX}_gups_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill gups-pebs;\
 	pkill perf;\
@@ -361,6 +361,7 @@ run_bg_sw_tier: all
 		NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
 		APP_SIZE=${GAPBS_SIZE} PREFIX=$${PREFIX} & \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep bc).txt ${RES}/${PREFIX}_gapbs_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill bc;\
 	pkill perf;\
@@ -373,6 +374,7 @@ run_bg_sw_tier: all
 		NVMOFFSET=$${NVMSIZE} DRAMOFFSET=$${DRAMSIZE} \
 		BT_SIZE=${BT_SIZE} PREFIX=$${PREFIX} & \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep bt.E).txt ${RES}/${PREFIX}_bt_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill bt.E;\
 	pkill perf;\
@@ -386,7 +388,6 @@ run_test_nodram_bg_sw_tier: all
 	NVMSIZE2=$$((${NVMSIZE} - $${FLEXKV_SIZE})); \
 	${SETUP_CMD} \
 	PREFIX=bg_nodram_test_hemem; \
-	file=${RES}/$${PREFIX}_Isolated; \
 	${RUN_PERF} \
 	$(MAKE) run_flexkvs MAXMEM_MEASURE=1 HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=0 DRAMOFFSET=${DRAMSIZE} NVMSIZE=$${NVMSIZE1} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
 		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_Isolated; \
@@ -397,6 +398,7 @@ run_test_nodram_bg_sw_tier: all
 	$(MAKE) run_gups_pebs HEMEM_MGR_START_CPU=2 HEMEM_START_CPU=${APP_CPUS_START} HEMEM_NUM_CORES=${APP_THDS} NVMSIZE=$${NVMSIZE2} DRAMSIZE=${DRAMSIZE} NVMOFFSET=$${NVMSIZE1} DRAMOFFSET=0 \
 		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}& \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep gups-pebs).txt ${RES}/${PREFIX}_gups_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill gups-pebs;\
 	pkill perf;\
@@ -408,6 +410,7 @@ run_test_nodram_bg_sw_tier: all
 	$(MAKE) run_gapbs HEMEM_MGR_START_CPU=2 HEMEM_START_CPU=${APP_CPUS_START} HEMEM_NUM_CORES=${APP_THDS} NVMSIZE=$${NVMSIZE2} DRAMSIZE=${DRAMSIZE} NVMOFFSET=$${NVMSIZE1} DRAMOFFSET=0 \
 		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GAPBS_SIZE} PREFIX=$${PREFIX} & \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep bc).txt ${RES}/${PREFIX}_gapbs_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill bc;\
 	pkill perf;\
@@ -419,6 +422,7 @@ run_test_nodram_bg_sw_tier: all
 	$(MAKE) run_bt HEMEM_MGR_START_CPU=2 HEMEM_START_CPU=${APP_CPUS_START} HEMEM_NUM_CORES=${APP_THDS} NVMSIZE=$${NVMSIZE2} DRAMSIZE=${DRAMSIZE} NVMOFFSET=$${NVMSIZE1} DRAMOFFSET=0 \
 		PRELOAD="${HEMEM_PRELOAD}" BT_SIZE=${BT_SIZE} PREFIX=$${PREFIX} & \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep bt.E).txt ${RES}/${PREFIX}_bt_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill bt.E;\
 	pkill perf;\
@@ -431,7 +435,6 @@ run_test_bg_sw_tier: all
 	NVMSIZE=$$((${NVMSIZE}/2)); \
 	${SETUP_CMD} \
 	PREFIX=bg_test_hemem; \
-	file=${RES}/$${PREFIX}_Isolated; \
 	${RUN_PERF} \
 	$(MAKE) run_flexkvs MAXMEM_MEASURE=1 HEMEM_MGR_START_CPU=0 HEMEM_START_CPU=${FLEXKV_CPUS_START} HEMEM_NUM_CORES=${FLEXKV_THDS} DRAMSIZE=${DRAMSIZE} DRAMOFFSET=0 NVMSIZE=$${NVMSIZE} NVMOFFSET=0 PRELOAD="${HEMEM_PRELOAD}" \
 		FLEXKV_SIZE=$${FLEXKV_SIZE} PREFIX=$${PREFIX}_Isolated; \
@@ -442,6 +445,7 @@ run_test_bg_sw_tier: all
 	$(MAKE) run_gups_pebs HEMEM_MGR_START_CPU=2 HEMEM_START_CPU=${APP_CPUS_START} HEMEM_NUM_CORES=${APP_THDS} NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=${DRAMSIZE} \
 		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GUPS_SIZE} PREFIX=$${PREFIX}& \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep gups-pebs).txt ${RES}/${PREFIX}_gups_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill gups-pebs;\
 	pkill perf;\
@@ -453,6 +457,7 @@ run_test_bg_sw_tier: all
 	$(MAKE) run_gapbs HEMEM_MGR_START_CPU=2 HEMEM_START_CPU=${APP_CPUS_START} HEMEM_NUM_CORES=${APP_THDS} NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=${DRAMSIZE} \
 		PRELOAD="${HEMEM_PRELOAD}" APP_SIZE=${GAPBS_SIZE} PREFIX=$${PREFIX} & \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep bc).txt ${RES}/${PREFIX}_gapbs_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill bc;\
 	pkill perf;\
@@ -464,6 +469,7 @@ run_test_bg_sw_tier: all
 	$(MAKE) run_bt HEMEM_MGR_START_CPU=2 HEMEM_START_CPU=${APP_CPUS_START} HEMEM_NUM_CORES=${APP_THDS} NVMSIZE=$${NVMSIZE} DRAMSIZE=0 NVMOFFSET=$${NVMSIZE} DRAMOFFSET=${DRAMSIZE} \
 		PRELOAD="${HEMEM_PRELOAD}" BT_SIZE=${BT_SIZE} PREFIX=$${PREFIX} & \
 	wait $${FLEX_PID}; \
+	cp /tmp/log-$$(pgrep bt.E).txt ${RES}/${PREFIX}_bt_miss_ratio.txt; \
 	pkill flexkvs;\
 	pkill bt.E;\
 	pkill perf;\
@@ -654,7 +660,7 @@ run_eval_dynamic_hw: all
 	pkill flexkvs;
 
 #BG_PREFIXES = "bg_dram_base,bg_hw_tier,bg_znuma_tier,bg_mini_hemem,bg_hemem,bg_test_hemem"
-BG_PREFIXES = "bg_dram_base,bg_mini_hemem,bg_hemem,bg_test_hemem,bg_nodram_test_hemem"
+BG_PREFIXES = "bg_hemem,bg_test_hemem,bg_nodram_test_hemem"
 BG_APPS = "Isolated,gups,gapbs,bt"
 extract_bg: all
 	python scripts/extract_script.py ${BG_PREFIXES} ${BG_APPS} ${RES}

@@ -54,6 +54,8 @@ extern char* nvmpath;
 extern uint64_t start_cpu;
 extern uint64_t num_cores;
 
+extern FILE* miss_ratio_f;
+
 #define NVMSIZE_DEFAULT   (480L * (1024L * 1024L * 1024L))
 #define DRAMSIZE_DEFAULT  (128L * (1024L * 1024L * 1024L))
 
@@ -109,8 +111,8 @@ static inline void log_time(const char* fmt, ...)
 #define LOG_TIME(str, ...) while(0) {}
 
 extern FILE *statsf;
-#define LOG_STATS(str, ...) fprintf(stderr, str, __VA_ARGS__)
-//#define LOG_STATS(str, ...) fprintf(statsf, str, __VA_ARGS__)
+//#define LOG_STATS(str, ...) fprintf(stderr, str, __VA_ARGS__)
+#define LOG_STATS(str, ...) fprintf(statsf, str, __VA_ARGS__)
 //#define LOG_STATS(str, ...) while (0) {}
 
 #if defined (ALLOC_HEMEM)

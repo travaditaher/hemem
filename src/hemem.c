@@ -293,7 +293,10 @@ void hemem_init()
     assert(0);
   }
 
-  statsf = fopen("stats.txt", "w+");
+  char stats_name_buf[25]; 
+  int snret = snprintf(stats_name_buf, 25, "/tmp/stats-%d.txt", getpid());
+  assert(snret > 0);
+  statsf = fopen(stats_name_buf, "w+");
   if (statsf == NULL) {
     perror("stats file fopen\n");
     assert(0);
@@ -440,7 +443,7 @@ static void hemem_mmap_populate(void* addr, size_t length)
 #ifndef USE_DMA
     hemem_parallel_memset(tmpaddr, 0, pagesize);
 #else
-    memset(tmpaddr, 0, pagesize);
+    //memset(tmpaddr, 0, pagesize);
 #endif
     memsets++;
   
@@ -965,7 +968,7 @@ void handle_missing_fault(uint64_t page_boundry)
   tmp_offset = (in_dram) ? dram_devdax_mmap + (offset - dramoffset) : nvm_devdax_mmap + (offset - nvmoffset);
 
 #ifdef USE_DMA
-  memset(tmp_offset, 0, pagesize);
+  //memset(tmp_offset, 0, pagesize);
 #else
   hemem_parallel_memset(tmp_offset, 0, pagesize);
 #endif
@@ -1221,6 +1224,15 @@ void hemem_print_stats(FILE *fd)
 {
 
   LOG_STATS("pid: [%u]\tmem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
+               getpid(),
+               mem_allocated, 
+               pages_allocated, 
+               missing_faults_handled, 
+               bytes_migrated,
+               migrations_up, 
+               migrations_down,
+               migration_waits);
+  fprintf(miss_ratio_f, "pid: [%u]\tmem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
                getpid(),
                mem_allocated, 
                pages_allocated, 

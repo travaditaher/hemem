@@ -516,7 +516,7 @@ void *pebs_policy_thread()
         if (page == NULL) {
             continue;
         }
-        
+
         list = page->list;
         assert(list != NULL);
         #ifdef COOL_IN_PLACE
@@ -538,6 +538,16 @@ void *pebs_policy_thread()
         if (page == NULL) {
             continue;
         }
+
+        if (!page->present) {
+          // page has been freed
+          if (page->in_dram) {
+            assert(page->list == &dram_free_list);
+          } else {
+            assert(page->list == &nvm_free_list);
+          }
+          continue;
+        }
         
         #ifdef COOL_IN_PLACE
         update_current_cool_page(&cur_cool_in_dram, &cur_cool_in_nvm, page);
@@ -555,6 +565,17 @@ void *pebs_policy_thread()
         if (page == NULL) {
             continue;
         }
+        
+        if (!page->present) {
+          // page has been freed
+          if (page->in_dram) {
+            assert(page->list == &dram_free_list);
+          } else {
+            assert(page->list == &nvm_free_list);
+          }
+          continue;
+        }
+        
 
         #ifdef COOL_IN_PLACE
         update_current_cool_page(&cur_cool_in_dram, &cur_cool_in_nvm, page);
@@ -837,11 +858,6 @@ void pebs_shutdown()
   }
 }
 
-static inline double calc_miss_ratio()
-{
-  return ((1.0 * accesses_cnt[NVMREAD]) / (1.0 * (accesses_cnt[DRAMREAD] + accesses_cnt[NVMREAD])));
-}
-
 void pebs_stats()
 {
   uint64_t total_samples = 0;
@@ -868,18 +884,4 @@ void pebs_stats()
     (double)(nvm_hot_list.numentries + nvm_cold_list.numentries) * ((double)PAGE_SIZE) / (1024.0 * 1024.0 * 1024.0));
   fflush(stdout);
   hemem_pages_cnt = total_pages_cnt =  throttle_cnt = unthrottle_cnt = 0;
-
-  if (accesses_cnt[DRAMREAD] + accesses_cnt[NVMREAD] != 0) {
-    if (miss_ratio == -1.0) {
-      miss_ratio = calc_miss_ratio();
-    } else {
-      miss_ratio = (EWMA_FRAC * calc_miss_ratio()) + ((1 - EWMA_FRAC) * miss_ratio);
-    }
-  } else {
-    miss_ratio = -1.0;
-  }
-  accesses_cnt[DRAMREAD] = accesses_cnt[NVMREAD] = 0;
-
-  fprintf(miss_ratio_f, "%f\n", miss_ratio);
-  fflush(miss_ratio_f);
 }
