@@ -894,8 +894,10 @@ void hemem_wp_page(struct hemem_page *page, bool protect)
   ret = ioctl(uffd, UFFDIO_WRITEPROTECT, &wp);
 
   if (ret < 0) {
-    perror("uffdio writeprotect");
-    assert(0);
+    if (!(errno == EBADF || errno == ENOENT)) { 
+      perror("uffdio writeprotect");
+      assert(0);
+    }
   }
   gettimeofday(&end, NULL);
 
