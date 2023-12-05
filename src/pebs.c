@@ -858,6 +858,13 @@ void pebs_shutdown()
   }
 }
 
+static inline double calc_miss_ratio()
+{
+  return ((1.0 * accesses_cnt[NVMREAD]) / (1.0 * (accesses_cnt[DRAMREAD] + accesses_cnt[NVMREAD])));
+}
+
+
+
 void pebs_stats()
 {
   uint64_t total_samples = 0;
@@ -879,6 +886,21 @@ void pebs_stats()
     core_accesses_cnt[i] = 0;
   }
   LOG_STATS("]\ttotal_samples: [%lu]\n", total_samples);
+
+  if (accesses_cnt[DRAMREAD] + accesses_cnt[NVMREAD] != 0) {
+    if (miss_ratio == -1.0) {
+      miss_ratio = calc_miss_ratio();
+    } else {
+      miss_ratio = (EWMA_FRAC * calc_miss_ratio()) + ((1 - EWMA_FRAC) * miss_ratio);
+    }
+  } else {
+    miss_ratio = -1.0;
+  }
+  fprintf(miss_ratio_f, "miss_ratio: %f\n", miss_ratio);
+  fflush(miss_ratio_f);
+
+  accesses_cnt[DRAMREAD] = accesses_cnt[NVMREAD] = 0;
+
   fprintf(stdout, "Total: %.2f GB DRAM, %.2f GB NVM\n",
     (double)(dram_hot_list.numentries + dram_cold_list.numentries) * ((double)PAGE_SIZE) / (1024.0 * 1024.0 * 1024.0), 
     (double)(nvm_hot_list.numentries + nvm_cold_list.numentries) * ((double)PAGE_SIZE) / (1024.0 * 1024.0 * 1024.0));

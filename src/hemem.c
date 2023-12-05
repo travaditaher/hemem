@@ -1234,15 +1234,11 @@ void hemem_print_stats(FILE *fd)
                migrations_up, 
                migrations_down,
                migration_waits);
-  fprintf(miss_ratio_f, "pid: [%u]\tmem_allocated: [%lu]\tpages_allocated: [%lu]\tmissing_faults_handled: [%lu]\tbytes_migrated: [%lu]\tmigrations_up: [%lu]\tmigrations_down: [%lu]\tmigration_waits: [%lu]\n", 
+  fprintf(miss_ratio_f, "pid: [%u]\ttmigrations_up: %lu\ttmigrations_down: %lu\ttotal_migrations: %lu\t", 
                getpid(),
-               mem_allocated, 
-               pages_allocated, 
-               missing_faults_handled, 
-               bytes_migrated,
                migrations_up, 
                migrations_down,
-               migration_waits);
+               migrations_up + migrations_down);
    mmgr_stats(); 
 }
 
