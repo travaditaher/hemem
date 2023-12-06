@@ -20,7 +20,7 @@
 #include "timer.h"
 #include "spsc-ring.h"
 
-uint64_t hemem_cpu_start;
+uint64_t pebs_start_cpu;
 uint64_t migration_thread_cpu;
 uint64_t scanning_thread_cpu;
 
@@ -135,7 +135,7 @@ void *pebs_scan_thread()
   }
 
   for(;;) {
-    for (int i = start_cpu; i < start_cpu + num_cores; i++) {
+    for (int i = pebs_start_cpu; i < pebs_start_cpu + num_cores; i++) {
       for(int j = 0; j < NPBUFTYPES; j++) {
         struct perf_event_mmap_page *p = perf_page[i][j];
         char *pbuf = (char *)p + p->data_offset;
@@ -777,16 +777,16 @@ void pebs_init(void)
   }
   assert(miss_ratio_f != NULL);
 
-  char* start_cpu_string = getenv("HEMEM_MGR_START_CPU");
-  if(start_cpu_string != NULL)
-    hemem_cpu_start = strtoull(start_cpu_string, NULL, 10);
+  char* pebs_start_cpu_string = getenv("PEBS_START_CPU");
+  if(pebs_start_cpu_string != NULL)
+    pebs_start_cpu = strtoull(pebs_start_cpu_string, NULL, 10);
   else
-    hemem_cpu_start = START_THREAD_DEFAULT;
+    pebs_start_cpu = START_THREAD_DEFAULT;
   
-  scanning_thread_cpu = hemem_cpu_start;
+  scanning_thread_cpu = hemem_start_cpu;
   migration_thread_cpu = scanning_thread_cpu + 1;
 
-  for (int i = start_cpu; i < start_cpu + num_cores; i++) {
+  for (int i = pebs_start_cpu; i < pebs_start_cpu + num_cores; i++) {
     //perf_page[i][READ] = perf_setup(0x1cd, 0x4, i);  // MEM_TRANS_RETIRED.LOAD_LATENCY_GT_4
     //perf_page[i][READ] = perf_setup(0x81d0, 0, i);   // MEM_INST_RETIRED.ALL_LOADS
     perf_page[i][DRAMREAD] = perf_setup(0x1d3, 0, i, DRAMREAD);      // MEM_LOAD_L3_MISS_RETIRED.LOCAL_DRAM
@@ -850,7 +850,7 @@ void pebs_init(void)
 
 void pebs_shutdown()
 {
-  for (int i = start_cpu; i < start_cpu + num_cores; i++) {
+  for (int i = pebs_start_cpu; i < pebs_start_cpu + num_cores; i++) {
     for (int j = 0; j < NPBUFTYPES; j++) {
       ioctl(pfd[i][j], PERF_EVENT_IOC_DISABLE, 0);
       //munmap(perf_page[i][j], sysconf(_SC_PAGESIZE) * PERF_PAGES);

@@ -39,7 +39,7 @@ off_t dramoffset = 0;
 char* drampath = NULL;
 char* nvmpath = NULL;
 
-uint64_t start_cpu = 0;
+uint64_t hemem_start_cpu = 0;
 uint64_t num_cores = 0;
 
 uint64_t fault_thread_cpu = 0;
@@ -220,14 +220,14 @@ void hemem_init()
     assert(r == 0);
   }
 */
-  char* start_cpu_string = getenv("HEMEM_START_CPU");
-  if(start_cpu_string != NULL)
-    start_cpu = strtoull(start_cpu_string, NULL, 10);
+  char* hemem_start_cpu_string = getenv("HEMEM_MGR_START_CPU");
+  if(hemem_start_cpu_string != NULL)
+    hemem_start_cpu = strtoull(hemem_start_cpu_string, NULL, 10);
   else
-    start_cpu = START_THREAD_DEFAULT;
+    hemem_start_cpu = START_THREAD_DEFAULT;
 
-  stats_thread_cpu = start_cpu;
-  fault_thread_cpu = start_cpu;
+  stats_thread_cpu = hemem_start_cpu;
+  fault_thread_cpu = hemem_start_cpu;
 
   char* num_cores_string = getenv("HEMEM_NUM_CORES");
   if(num_cores_string != NULL)

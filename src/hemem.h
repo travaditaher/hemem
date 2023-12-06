@@ -51,8 +51,10 @@ extern off_t nvmoffset;
 extern off_t dramoffset;
 extern char* drampath;
 extern char* nvmpath;
-extern uint64_t start_cpu;
+extern uint64_t hemem_start_cpu;
 extern uint64_t num_cores;
+extern uint64_t fault_thread_cpu;
+extern uint64_t stats_thread_cpu;
 
 extern FILE* miss_ratio_f;
 
@@ -112,7 +114,7 @@ static inline void log_time(const char* fmt, ...)
 
 extern FILE *statsf;
 //#define LOG_STATS(str, ...) fprintf(stderr, str, __VA_ARGS__)
-#define LOG_STATS(str, ...) fprintf(statsf, str, __VA_ARGS__)
+#define LOG_STATS(str, ...) { fprintf(statsf, str, __VA_ARGS__); fflush(statsf); }
 //#define LOG_STATS(str, ...) while (0) {}
 
 #if defined (ALLOC_HEMEM)
