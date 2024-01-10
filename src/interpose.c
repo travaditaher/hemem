@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <malloc.h>
 
 #include "hemem.h"
 #include "interpose.h"
@@ -21,11 +22,25 @@ void (*libc_free)(void* ptr) = NULL;
 static int mmap_filter(void *addr, size_t length, int prot, int flags, int fd, off_t offset, uint64_t *result)
 {
   //ensure_init();
+  if (!is_init) {
+    //LOG("hemem interpose: calling libc mmap due to hemem init in progress\n");
+    return 1;
+  }
+
+  if (internal_call) {
+    LOG("hemem interpose: calling libc mmap due to internal memory call: mmap(0x%lx, %ld, %x, %x, %d, %ld)\n", (uint64_t)addr, length, prot, flags, fd, offset);
+    return 1;
+  }
 
   //TODO: figure out which mmap calls should go to libc vs hemem
   // non-anonymous mappings should probably go to libc (e.g., file mappings)
   if (((flags & MAP_ANONYMOUS) != MAP_ANONYMOUS) && !((fd == dramfd) || (fd == nvmfd))) {
     LOG("hemem interpose: calling libc mmap due to non-anonymous, non-devdax mapping: mmap(0x%lx, %ld, %x, %x, %d, %ld)\n", (uint64_t)addr, length, prot, flags, fd, offset);
+    return 1;
+  }
+  
+  if ((prot & PROT_EXEC) == PROT_EXEC) {
+    // filter out code mappings
     return 1;
   }
 
@@ -46,20 +61,12 @@ static int mmap_filter(void *addr, size_t length, int prot, int flags, int fd, o
     return 1;
   }
 
-  if (internal_call) {
-    LOG("hemem interpose: calling libc mmap due to internal memory call: mmap(0x%lx, %ld, %x, %x, %d, %ld)\n", (uint64_t)addr, length, prot, flags, fd, offset);
-    return 1;
-  }
-  
-  if (!is_init) {
-    //LOG("hemem interpose: calling libc mmap due to hemem init in progress\n");
-    return 1;
-  }
-
-  if (length <= 1UL * 1024UL * 1024UL * 1024UL) {
+#ifndef LLAMA
+  if (length < 1UL * 1024UL * 1024UL * 1024UL) {
     LOG("hemem interpose calling libc mmap due to small allocation size: mmap(0x%lx, %ld, %x, %x, %d, %ld)\n", (uint64_t)addr, length, prot, flags, fd, offset);
     return 1;
   }
+#endif
 
   LOG("hemem interpose: calling hemem mmap(0x%lx, %ld, %x, %x, %d, %ld)\n", (uint64_t)addr, length, prot, flags, fd, offset);
   if ((*result = (uint64_t)hemem_mmap(addr, length, prot, flags, fd, offset)) == (uint64_t)MAP_FAILED) {
@@ -117,6 +124,13 @@ static __attribute__((constructor)) void init(void)
   libc_free = bind_symbol("free");
   intercept_hook_point = hook;
 
+#ifdef LLAMA
+  int ret = mallopt(M_MMAP_THRESHOLD, 0);
+  if (ret != 1) {
+    perror("mallopt");
+  }
+  assert(ret == 1);
+#endif
   hemem_init();
 }
 

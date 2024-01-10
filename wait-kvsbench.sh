@@ -1,10 +1,11 @@
 #!/bin/bash
 
-while [[ $( grep "Preloading completed" $1 ) == "" ]]
+sleep 5
+
+while [[ $( grep "Start" $1 ) == "" ]]
 do
         sleep 1
         #echo "Waiting for graph setup"
 done
 
-echo "FlexKVS setup"
-
+echo "kvsbench Ready"

@@ -55,6 +55,16 @@ void workload_init(struct workload *wl)
     }
 }
 
+void workload_init_dyn(struct workload *wl_orig, struct workload *wl_new)
+{
+    /* prepare rngs and distributions for keys */
+    rng_init(&wl_new->op_rng, settings.op_seed);
+    wl_new->keys = malloc(settings.keynum * (sizeof(struct key)));
+    memcpy(wl_new->keys, wl_orig->keys, settings.keynum * sizeof(struct key));
+    wl_new->keys_num = settings.keynum;
+    distribute_hot(wl_new->keys, wl_new->keys_num, settings.dyn_hotset_size, 0.9);
+}
+
 void workload_adjust(struct workload *wl, struct workload *wl2)
 {
     struct rng key_rng;
@@ -153,7 +163,7 @@ static void distribute_hot(struct key *keys, size_t n, double hotset_percent, do
 
     size_t i;
     double sum = 0;
-/* 
+/*
     // Hot key cdf
     for (i = 0; i < hotset_size; i++) {
         sum += 1.0 / hotset_size * hot_access_chance;
@@ -164,7 +174,7 @@ static void distribute_hot(struct key *keys, size_t n, double hotset_percent, do
         sum += 1.0 / coldset_size * cold_access_chance;
         keys[i].cdf = sum;
     }
-*/
+ */
     // Cold key cdf
     for (i = 0; i < coldset_size; i++) {
         sum += 1.0 / coldset_size * cold_access_chance;
@@ -225,3 +235,4 @@ static struct key *draw_key(struct key *keys, size_t n, struct rng *rng)
 
     return keys + mid;
 }
+

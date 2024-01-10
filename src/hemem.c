@@ -209,6 +209,7 @@ void hemem_init()
 #ifdef USE_DMA
   struct uffdio_dma_channs uffdio_dma_channs;
 #endif
+  char logpath[32];
 
   internal_call = true;
 /*
@@ -234,8 +235,9 @@ void hemem_init()
     num_cores = strtoull(num_cores_string, NULL, 10);
   else
     num_cores = PEBS_NPROCS;
-  
-  hememlogf = fopen("logs.txt", "w+");
+
+  snprintf(&logpath[0], sizeof(logpath) - 1, "/tmp/debuglog-%d.txt", getpid());
+  hememlogf = fopen(logpath, "w+");
   if (hememlogf == NULL) {
     perror("log file open\n");
     assert(0);
@@ -443,7 +445,9 @@ static void hemem_mmap_populate(void* addr, size_t length)
 #ifndef USE_DMA
     hemem_parallel_memset(tmpaddr, 0, pagesize);
 #else
-    //memset(tmpaddr, 0, pagesize);
+#ifdef LLAMA
+    memset(tmpaddr, 0, pagesize);
+#endif
 #endif
     memsets++;
   
@@ -970,7 +974,9 @@ void handle_missing_fault(uint64_t page_boundry)
   tmp_offset = (in_dram) ? dram_devdax_mmap + (offset - dramoffset) : nvm_devdax_mmap + (offset - nvmoffset);
 
 #ifdef USE_DMA
-  //memset(tmp_offset, 0, pagesize);
+#ifdef LLAMA
+  memset(tmp_offset, 0, pagesize);
+#endif
 #else
   hemem_parallel_memset(tmp_offset, 0, pagesize);
 #endif

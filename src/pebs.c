@@ -93,6 +93,7 @@ static struct perf_event_mmap_page* perf_setup(__u64 config, __u64 config1, __u6
   }
   assert(pfd[cpu][type] != -1);
 
+  fprintf(stderr, "Set up perf on core %llu\n", cpu);
   size_t mmap_size = sysconf(_SC_PAGESIZE) * PERF_PAGES;
   /* printf("mmap_size = %zu\n", mmap_size); */
   struct perf_event_mmap_page *p = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, pfd[cpu][type], 0);
