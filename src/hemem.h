@@ -185,6 +185,8 @@ struct hemem_page {
   UT_hash_handle hh;
   struct hemem_page *next, *prev;
   struct fifo_list *list;
+
+  bool enforced;  // 1 = Cannot be evicted from DRAM, 0 = Normal page
 };
 
 static inline uint64_t pt_to_pagesize(enum pagetypes pt)
