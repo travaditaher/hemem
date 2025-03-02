@@ -235,4 +235,12 @@ void hemem_stop_timing(void);
 }
 #endif
 
+#ifndef HEMEM_HINTS_H
+#define HEMEM_HINTS_H
+
+extern int user_hint_tier; // -1: default, 0: DRAM, 1: NVM
+extern int user_hint_persistence; // 0: Flexible, 1: Enforced
+
+#endif
+
 #endif /* HEMEM_H */

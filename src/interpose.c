@@ -21,6 +21,14 @@ void (*libc_free)(void* ptr) = NULL;
 
 static int mmap_filter(void *addr, size_t length, int prot, int flags, int fd, off_t offset, uint64_t *result)
 {
+
+  if (fd == -420) {
+    user_hint_tier = tier_code;  // User-specified tier
+    user_hint_persistence = persistence; // Persistence flag
+
+    return 0;  // Not an actual mmap call
+  }
+
   //ensure_init();
   if (!is_init) {
     //LOG("hemem interpose: calling libc mmap due to hemem init in progress\n");

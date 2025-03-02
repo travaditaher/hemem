@@ -732,12 +732,93 @@ static struct hemem_page* pebs_allocate_page()
   assert(!"Out of memory");
 }
 
+static struct hemem_page* user_hinted_dram_pebs_allocate_page()
+{
+  struct timeval start, end;
+  struct hemem_page *page;
+
+  // Try to allocate from DRAM if we are lucky all good
+
+  gettimeofday(&start, NULL);
+  page = dequeue_fifo(&dram_free_list);
+  if (page != NULL) {
+    assert(page->in_dram);
+    assert(!page->present);
+
+    page->present = true;
+    enqueue_fifo(&dram_cold_list, page);
+
+    gettimeofday(&end, NULL);
+    LOG_TIME("mem_policy_allocate_page: %f s\n", elapsed(&start, &end));
+
+    //reset the hint
+    user_hint_tier = -1;
+
+    return page;
+  }
+
+  // DRAM is full: Try migrating a cold page from DRAM to NVM
+  //        https://github.com/travaditaher/hemem/blob/master/src/pebs.c#L640
+  
+  cold_page = dequeue_fifo(&dram_cold_list);  
+  free_nvm_page = dequeue_fifo(&nvm_free_list);
+
+  if (cold_page != NULL && free_nvm_page != NULL) {
+    old_offset = cold_page->devdax_offset;
+
+    // Move the cold DRAM page to NVM
+    pebs_migrate_down(cold_page, free_nvm_page->devdax_offset);
+
+    // Update metadata
+    free_nvm_page->devdax_offset = old_offset;
+    free_nvm_page->in_dram = true;
+    free_nvm_page->present = false;
+    free_nvm_page->hot = false;
+
+    for (int i = 0; i < NPBUFTYPES; i++) {
+      free_nvm_page->accesses[i] = 0;
+      free_nvm_page->tot_accesses[i] = 0;
+    }
+
+    // Reinsert pages in respective free lists
+    enqueue_fifo(&nvm_cold_list, cold_page);
+    enqueue_fifo(&dram_free_list, free_nvm_page);
+
+    // Now, retry DRAM allocation
+    page = dequeue_fifo(&dram_free_list);
+    if (page != NULL) {
+      assert(page->in_dram);
+      assert(!page->present);
+
+      page->present = true;
+      enqueue_fifo(&dram_cold_list, page);
+
+      gettimeofday(&end, NULL);
+      LOG_TIME("mem_policy_allocate_page: %f s\n", elapsed(&start, &end));
+
+      user_hint_tier = -1;  // Reset hint
+      return page;
+    }
+  }
+
+  // we ran out of space
+  assert(!"Out of memory");
+}
+
 struct hemem_page* pebs_pagefault(void)
 {
   struct hemem_page *page;
 
   // do the heavy lifting of finding the devdax file offset to place the page
+
+  //if user requested DRAM explicitly
+  if (user_hint_tier == 0){
+    page = user_hinted_dram_pebs_allocate_page();
+  }
+  //Fallback to normal way
+  else {
   page = pebs_allocate_page();
+  }
   assert(page != NULL);
 
   return page;
