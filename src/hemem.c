@@ -82,6 +82,9 @@ pthread_t stats_thread;
 struct hemem_page *pages = NULL;
 pthread_mutex_t pages_lock = PTHREAD_MUTEX_INITIALIZER;
 
+int user_hint_persistence = 0;  // Default value
+int user_hint_tier = 0;  // Default value
+
 void *dram_devdax_mmap;
 void *nvm_devdax_mmap;
 

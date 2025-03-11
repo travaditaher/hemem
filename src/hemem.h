@@ -57,6 +57,8 @@ extern uint64_t fault_thread_cpu;
 extern uint64_t stats_thread_cpu;
 
 extern FILE* miss_ratio_f;
+extern int user_hint_tier;
+extern int user_hint_persistence;
 
 #define NVMSIZE_DEFAULT   (480L * (1024L * 1024L * 1024L))
 #define DRAMSIZE_DEFAULT  (128L * (1024L * 1024L * 1024L))

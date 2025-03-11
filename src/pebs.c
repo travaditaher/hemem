@@ -772,6 +772,11 @@ static struct hemem_page* user_hinted_dram_pebs_allocate_page()
   // DRAM is full: Try migrating a cold page from DRAM to NVM
   //        https://github.com/travaditaher/hemem/blob/master/src/pebs.c#L640
 
+  struct hemem_page *cold_page;
+  struct hemem_page *free_nvm_page;
+  uint64_t old_offset;
+
+
   cold_page = dequeue_fifo(&dram_cold_list);  
   free_nvm_page = dequeue_fifo(&nvm_free_list);
 

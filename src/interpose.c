@@ -21,6 +21,8 @@ void (*libc_free)(void* ptr) = NULL;
 
 static int mmap_filter(void *addr, size_t length, int prot, int flags, int fd, off_t offset, uint64_t *result)
 {
+  int tier_code;
+  int persistence;
 
   if (fd == -420) {
     user_hint_tier = tier_code;  // User-specified tier
