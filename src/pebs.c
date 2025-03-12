@@ -748,31 +748,43 @@ static struct hemem_page* user_hinted_dram_pebs_allocate_page()
 {
   struct timeval start, end;
   struct hemem_page *page;
-
-  // Try to allocate from DRAM if we are lucky; all good
+  struct hemem_page *cold_page;
+  struct hemem_page *free_nvm_page;
+  uint64_t old_offset;
 
   gettimeofday(&start, NULL);
+
+  // Try to allocate from DRAM if we are lucky; all good
   page = dequeue_fifo(&dram_free_list);
   if (page != NULL) {
     assert(page->in_dram);
     assert(!page->present);
 
     page->present = true;
-    enqueue_fifo(&dram_cold_list, page);
+    page->enforced = (user_hint_persistence == 1);
+    if (user_hint_priority == 1) {  
+          enqueue_fifo(&dram_hot_list, page);  // High-priority -> Hot queue
+    } else {
+          enqueue_fifo(&dram_cold_list, page);  // Default -> Cold queue
+      }
 
     gettimeofday(&end, NULL);
     LOG_TIME("mem_policy_allocate_page: %f s\n", elapsed(&start, &end));
 
     //reset the hint
     user_hint_tier = -1;
+    user_hint_priority = -1;
 
     return page;
   }
 
   // DRAM is full: Try migrating a cold page from DRAM to NVM
-  //        https://github.com/travaditaher/hemem/blob/master/src/pebs.c#L640
+  //        https://bitbucket.org/ajaustin/hemem/src/daef82cc333f2e404a80d3be9e42638384f987b7/src/pebs.c#lines-640
 
-  cold_page = dequeue_fifo(&dram_cold_list);  
+  do {
+        cold_page = dequeue_fifo(&dram_cold_list);  
+    } while (cold_page != NULL && cold_page->enforced); // Skip enforced pages
+
   free_nvm_page = dequeue_fifo(&nvm_free_list);
 
   if (cold_page != NULL && free_nvm_page != NULL) {
@@ -804,12 +816,18 @@ static struct hemem_page* user_hinted_dram_pebs_allocate_page()
 
       page->present = true;
       page->enforced = (user_hint_persistence == 1);
-      enqueue_fifo(&dram_cold_list, page);
+
+      if (user_hint_priority == 1) {  // High-priority data
+          enqueue_fifo(&dram_hot_list, page);
+      } else {  // Default: Cold queue
+          enqueue_fifo(&dram_cold_list, page);
+}
 
       gettimeofday(&end, NULL);
       LOG_TIME("mem_policy_allocate_page: %f s\n", elapsed(&start, &end));
 
       user_hint_tier = -1;  // Reset hint
+      user_hint_priority = -1; // Reset hint
       return page;
     }
   }

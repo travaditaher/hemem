@@ -242,6 +242,7 @@ void hemem_stop_timing(void);
 
 extern int user_hint_tier; // -1: default, 0: DRAM, 1: NVM
 extern int user_hint_persistence; // 0: Flexible, 1: Enforced
+extern int user_hint_priority; // 0: Cold, 1: Hot
 
 #endif
 
