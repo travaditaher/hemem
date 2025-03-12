@@ -116,10 +116,14 @@ static void* bind_symbol(const char *sym)
   return ptr;
 }
 
-static int hook(long syscall_number, long arg0, long arg1, long arg2, long arg3,	long arg4, long arg5, long arg6, long arg7, long arg7, long *result)
+static int hook(long syscall_number, long arg0, long arg1, long arg2, long arg3,	long arg4, long arg5, long arg6, long arg7, long arg8, long *result)
 {
 	if (syscall_number == SYS_mmap) {
-	  return mmap_filter((void*)arg0, (size_t)arg1, (int)arg2, (int)arg3, (int)arg4, (off_t)arg5, (int)arg6, (int)arg7, (int)arg8, (uint64_t*)result);
+    int tier_code = (arg6 != 0) ? (int)arg6 : -1;  // Default: -1 (Let Hemem decide)
+    int persistence = (arg7 != 0) ? (int)arg7 : 0;  // Default: 0 (Flexible)
+    int priority = (arg8 != 0) ? (int)arg8 : 0;  // Default: 0 (Cold)
+
+	  return mmap_filter((void*)arg0, (size_t)arg1, (int)arg2, (int)arg3, (int)arg4, (off_t)arg5, tier_code, persistence, priority, (uint64_t*)result);
 	} else if (syscall_number == SYS_munmap){
     return munmap_filter((void*)arg0, (size_t)arg1, (uint64_t*)result);
   } else {
